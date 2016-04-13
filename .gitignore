@@ -1,0 +1,107 @@
+# compiled python
+*.pyc
+# optimized python
+*.pyo
+# python .dll-ish stuff
+*.pyd
+
+# cython cruft
+*_c.so
+*_c.c
+*_c.html
+
+# setuptools cruft
+build
+dist
+*.egg-info
+
+# OSX cruft
+.DS_Store
+
+# komodo project files (local only)
+*.kpf
+*.komodoproject
+.komodotools
+
+# PyCharm project files
+.idea
+*___*___
+
+# tmp dirs for holding data files and other junk
+junk
+*.delme
+\#*.*
+
+# Temporary, externally sourced
+couchable
+couchable-*.egg
+solari*
+
+# For testing solari
+selenium*.jar
+
+# vim tempfiles
+.*.swp
+# vim config
+_vimrc_local.vim
+
+# cuda profiling logs
+cuda_profile*.log
+.cuda-gdbinit
+
+# test data
+.coverage
+.cache
+mms/dicom/testing/data
+gamma_data.csv
+mms/testing/data
+dicom_files
+test_paths
+
+# Debian packages
+*.deb
+
+# jEdit backup files
+*~
+
+# Selenium logs
+chromedriver.log
+
+# Generated VERSION file
+mms/VERSION
+
+# local pylint output
+pylint.log
+violations.txt
+
+# ctags
+tags
+
+# automodeling result and beam report
+[^/]*.json
+[^/]*.pdf
+*.log
+
+# gui merging tool backups
+*.orig
+
+# Shared libraries
+*.so
+
+# object file
+*.o
+
+# Temporary customer json dirs
+mms/testing/cases/regression
+mms/testing/cases/improvement
+mms/testing/cases/pass
+mms/testing/cases/new
+
+# Dir to store log, temp files, generated results
+automation/results
+results
+tmp
+
+# npm cruft
+npm-debug.log
+node_modules
