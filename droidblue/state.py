@@ -1,11 +1,20 @@
 __author__ = 'elis'
 
+# logging
+import logging
+log = logging.getLogger(__name__)
+log.setLevel(logging.WARNING)
+log.setLevel(logging.INFO)
+log.setLevel(logging.DEBUG)
+
+
 from collections import deque
 
 import numpy as np
 from droidblue.steps import Stepper
 from droidblue.edge import ChooseNoneEdge
 from droidblue.cards import xws
+from droidblue.base import LargeBase
 
 game = object()
 
@@ -28,15 +37,15 @@ def importstr(module_str, from_=None):
     return module
 
 shipStatIndex_dict = {attr: i for i, attr in enumerate([
-    # Stats
+    # Stats:
     'atk',
     'agi',
-    'hull',
+    'hull_max',
     'shield_max',
     'ps',
     'points',
     
-    # Tokens
+    # Tokens:
     # Note that crit tokens are just a handy reminder of the damage cards, 
     # not an actual in-game effect themselves.
     'shield',
@@ -47,16 +56,26 @@ shipStatIndex_dict = {attr: i for i, attr in enumerate([
     'stress_afterCheckPilotStress',
     'ion',
     
-    # Token caps
+    # Token caps:
     'evade_max',
     
-    # Flags
-    'givesHalfMov',
+    # Flags:
+    'dialKnown',
     'weaponsDisabled',
     'weaponsDisabled_nextTurn',
-    'didActivation',
-    'didCombat',
     'performedGreenManeuver',
+
+    'chosen_dials',
+    'chosen_activation',
+    'chosen_combat',
+
+    # Hardcoded ones:
+    #   ignoreStress
+    #   grantsHalfMov
+    #   totalHp
+    #   currentHp
+    #   damage
+    #   ionizedAt_count
 ])}
 
 # shipValueIndex_dict = {attr: i for i, attr in enumerate([
@@ -72,10 +91,13 @@ class Pilot(object):
     def __init__(self,
                  state,
                  player_id, pilot_id,
-                 pilot_json):
+                 faction_str, pilot_json):
         self.player_id = player_id
         self.pilot_id = pilot_id
+        self.ship_str = pilot_json['ship']
+        self.pilot_str = pilot_json['name']
         self.base = None
+        self.maneuver = None
 
         self.damage_list = []
         self.targetLock_list = []
@@ -83,24 +105,24 @@ class Pilot(object):
         # TODO
         state.setStat(self.pilot_id, 'points', pilot_json['points'])
 
-        self.base = xws.ship_dict['base']()
+        self.base = xws.ship_dict[self.ship_str]['base']()
 
-        for xws_dict in [xws.ship_dict, xws.pilot_dict]:
+        for xws_dict in [xws.ship_dict[self.ship_str], xws.pilot_dict[self.pilot_str]]:
             for stat, value in xws_dict.get('stat_dict', {}).iteritems():
                 state.setStat(pilot_id, stat, value)
 
             for rule_cls in xws_dict.get('rule_list', []):
+                log.debug(rule_cls)
                 rule_cls(state, self.pilot_id)
 
-        module_list = ['ship.' + pilot_json['ship'], 'pilot.' + pilot_json['name']]
-        for slot_str, upgrade_list in pilot_json['upgrades'].iteritems():
-            for upgrade_str in upgrade_list:
-                module_list.append('upgrade.{}.{}'.format(slot_str, upgrade_str))
-
+        # Ship and pilot rules
+        module_list = ['ship.' + pilot_json['ship'], 'pilot.{}.{}'.format(faction_str, pilot_json['name'])]
         for module_str in module_list:
             try:
                 module = importstr('droidblue.{}'.format(module_str))
             except ImportError:
+                if not '.ship.' in module_str:
+                    log.warn("Module not found: {}".format(module_str))
                 continue
 
             for stat, value in getattr(module, 'stat_dict', {}).iteritems():
@@ -108,6 +130,31 @@ class Pilot(object):
 
             for rule_cls in getattr(module, 'rule_list', []):
                 rule_cls(state, self.pilot_id)
+
+        module_list = []
+        for slot_str, upgrade_list in pilot_json['upgrades'].iteritems():
+            for upgrade_str in upgrade_list:
+                module_list.append('upgrade.{}.{}'.format(slot_str, upgrade_str))
+
+        upgrade_index = 0
+        for module_str in module_list:
+            try:
+                module = importstr('droidblue.{}'.format(module_str))
+            except ImportError:
+                if not '.ship.' in module_str:
+                    log.warn("Module not found: {}".format(module_str))
+                continue
+
+            for stat, value in getattr(module, 'stat_dict', {}).iteritems():
+                state.setStat(pilot_id, stat, value)
+
+            if '.upgrade.' in module_str:
+                for rule_cls in getattr(module, 'rule_list', []):
+                    rule_cls(state, self.pilot_id, upgrade_index)
+                upgrade_index += 1
+            else:
+                for rule_cls in getattr(module, 'rule_list', []):
+                    rule_cls(state, self.pilot_id)
 
 
 class BoardState(object):
@@ -132,19 +179,42 @@ class BoardState(object):
         self.defenseDice_pool = None
 
         self.player_count = len(squads_list)
-        self.ships = []
-        for player_id, squad_list in squads_list:
-            for pilot_json in squad_list:
-                self.ships.append(Pilot(self, player_id, len(self.ships), **pilot_json))
+        self.pilots = []
 
-        # self.currentScore_list = None
-        
-        self.stat_array = np.zeros((len(self.ships), len(shipStatIndex_dict)), np.int8)
-        # self.value_array = np.zeros((len(self.ships), len(shipStatIndex_dict)), np.float32)
+        pilot_count = 0
+        for player_id, squad_json in enumerate(squads_list):
+            pilot_count += len(squad_json['pilots'])
+        self.stat_array = np.zeros((pilot_count, len(shipStatIndex_dict)), np.int8)
+
+        for player_id, squad_json in enumerate(squads_list):
+            for pilot_json in squad_json['pilots']:
+                print type(pilot_json), pilot_json
+                self.pilots.append(Pilot(self, player_id, len(self.pilots), squad_json['faction'], pilot_json))
 
     # Stats (int8)
     def getRawStat(self, pilot_id, stat_key):
-        return int(self.stat_array[pilot_id, shipStatIndex_dict[stat_key]])
+        if stat_key in shipStatIndex_dict:
+            return int(self.stat_array[pilot_id, shipStatIndex_dict[stat_key]])
+
+        if stat_key == 'ignoreStress':
+            return False
+
+        if stat_key == 'grantsHalfMov':
+            return int(type(self.pilots[pilot_id].base) == LargeBase)
+
+        if stat_key == 'totalHp':
+            return int(self.getStat(pilot_id, 'hull_max') + self.getStat(pilot_id, 'shield_max'))
+
+        if stat_key == 'currentHp':
+            hull_int = self.getStat(pilot_id, 'hull_max')
+            hull_int -= self.getStat(pilot_id, 'damage')
+            return int(hull_int + self.getStat(pilot_id, 'shield'))
+
+        if stat_key == 'damage':
+            return len(self.pilots[pilot_id].damage_list)
+
+        if stat_key == 'ionizedAt_count':
+            return 2 if type(self.pilots[pilot_id].base) == LargeBase else 1
 
     def setStat(self, pilot_id, stat_key, value):
         stat_ndx = shipStatIndex_dict[stat_key]
@@ -240,9 +310,9 @@ class BoardState(object):
             else:
                 break
 
-        self.activePlayer_id = self.ships[self.edge_list[0].active_id].player_id
+        self.activePlayer_id = self.pilots[self.edge_list[0].active_id].player_id
         for edge in self.edge_list:
-            assert self.ships[edge.active_id].player_id == self.activePlayer_id
+            assert self.pilots[edge.active_id].player_id == self.activePlayer_id
 
 
     def _getEdges(self):

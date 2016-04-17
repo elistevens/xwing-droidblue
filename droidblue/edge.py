@@ -44,10 +44,10 @@ import random
 
 class Edge(object):
     usesSlop_bool = False
+    mandatory_bool = False
 
     def __init__(self, active_id):
         self.active_id = active_id
-        self.mandatory_bool = False
 
     def computeLookaheadScore(self, score_cls, parent, slop, depth):
         state = copy.deepcopy(parent)
@@ -59,7 +59,8 @@ class Edge(object):
     def getExactState(self, parent):
         state = copy.deepcopy(parent)
         state.slop = None
-        return self.transitionImpl(state)
+        self.transitionImpl(state)
+        return state
 
     def transitionImpl(self, state):
         raise NotImplementedError()

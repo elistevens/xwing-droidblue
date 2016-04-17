@@ -2345,7 +2345,9 @@ shipData_dict = json.loads("""
 }
 """)
 
-pilotData_dict = json.loads("""
+
+
+pilotData_list = json.loads("""
 [
     {
         "name": "Wedge Antilles",
@@ -2440,7 +2442,7 @@ pilotData_dict = json.loads("""
         ]
     },
     {
-        "name": "\"Dutch\" Vander",
+        "name": "\\"Dutch\\" Vander",
         "faction": "Rebel Alliance",
         "id": 7,
         "unique": true,
@@ -2513,7 +2515,7 @@ pilotData_dict = json.loads("""
         ]
     },
     {
-        "name": "\"Winged Gundark\"",
+        "name": "\\"Winged Gundark\\"",
         "faction": "Galactic Empire",
         "id": 13,
         "unique": true,
@@ -2523,7 +2525,7 @@ pilotData_dict = json.loads("""
         "slots": []
     },
     {
-        "name": "\"Night Beast\"",
+        "name": "\\"Night Beast\\"",
         "faction": "Galactic Empire",
         "id": 14,
         "unique": true,
@@ -2533,7 +2535,7 @@ pilotData_dict = json.loads("""
         "slots": []
     },
     {
-        "name": "\"Backstabber\"",
+        "name": "\\"Backstabber\\"",
         "faction": "Galactic Empire",
         "id": 15,
         "unique": true,
@@ -2543,7 +2545,7 @@ pilotData_dict = json.loads("""
         "slots": []
     },
     {
-        "name": "\"Dark Curse\"",
+        "name": "\\"Dark Curse\\"",
         "faction": "Galactic Empire",
         "id": 16,
         "unique": true,
@@ -2553,7 +2555,7 @@ pilotData_dict = json.loads("""
         "slots": []
     },
     {
-        "name": "\"Mauler Mithel\"",
+        "name": "\\"Mauler Mithel\\"",
         "faction": "Galactic Empire",
         "id": 17,
         "unique": true,
@@ -2565,7 +2567,7 @@ pilotData_dict = json.loads("""
         ]
     },
     {
-        "name": "\"Howlrunner\"",
+        "name": "\\"Howlrunner\\"",
         "faction": "Galactic Empire",
         "id": 18,
         "unique": true,
@@ -2654,7 +2656,7 @@ pilotData_dict = json.loads("""
         ]
     },
     {
-        "name": "\"Fel's Wrath\"",
+        "name": "\\"Fel's Wrath\\"",
         "faction": "Galactic Empire",
         "id": 26,
         "unique": true,
@@ -3364,7 +3366,7 @@ pilotData_dict = json.loads("""
         ]
     },
     {
-        "name": "\"Echo\"",
+        "name": "\\"Echo\\"",
         "faction": "Galactic Empire",
         "id": 78,
         "unique": true,
@@ -3378,7 +3380,7 @@ pilotData_dict = json.loads("""
         ]
     },
     {
-        "name": "\"Whisper\"",
+        "name": "\\"Whisper\\"",
         "faction": "Galactic Empire",
         "id": 79,
         "unique": true,
@@ -3452,7 +3454,7 @@ pilotData_dict = json.loads("""
         ]
     },
     {
-        "name": "\"Hobbie\" Klivian",
+        "name": "\\"Hobbie\\" Klivian",
         "faction": "Rebel Alliance",
         "id": 84,
         "unique": true,
@@ -3602,7 +3604,7 @@ pilotData_dict = json.loads("""
         ]
     },
     {
-        "name": "\"Leebo\"",
+        "name": "\\"Leebo\\"",
         "faction": "Rebel Alliance",
         "id": 94,
         "ship": "YT-2400",
@@ -4327,7 +4329,7 @@ pilotData_dict = json.loads("""
         "points": 23
     },
     {
-        "name": "\"Redline\"",
+        "name": "\\"Redline\\"",
         "unique": true,
         "id": 143,
         "faction": "Galactic Empire",
@@ -4345,7 +4347,7 @@ pilotData_dict = json.loads("""
         "points": 27
     },
     {
-        "name": "\"Deathrain\"",
+        "name": "\\"Deathrain\\"",
         "unique": true,
         "id": 144,
         "faction": "Galactic Empire",
@@ -4452,7 +4454,7 @@ pilotData_dict = json.loads("""
         "points": 40
     },
     {
-        "name": "\"Scourge\"",
+        "name": "\\"Scourge\\"",
         "id": 151,
         "unique": true,
         "faction": "Galactic Empire",
@@ -4464,7 +4466,7 @@ pilotData_dict = json.loads("""
         "points": 17
     },
     {
-        "name": "\"Youngster\"",
+        "name": "\\"Youngster\\"",
         "id": 152,
         "unique": true,
         "faction": "Galactic Empire",
@@ -4476,7 +4478,7 @@ pilotData_dict = json.loads("""
         "points": 15
     },
     {
-        "name": "\"Wampa\"",
+        "name": "\\"Wampa\\"",
         "id": 153,
         "unique": true,
         "faction": "Galactic Empire",
@@ -4486,7 +4488,7 @@ pilotData_dict = json.loads("""
         "points": 14
     },
     {
-        "name": "\"Chaser\"",
+        "name": "\\"Chaser\\"",
         "id": 154,
         "unique": true,
         "faction": "Galactic Empire",
@@ -4530,7 +4532,7 @@ pilotData_dict = json.loads("""
         "points": 38
     },
     {
-        "name": "\"Chopper\"",
+        "name": "\\"Chopper\\"",
         "id": 157,
         "unique": true,
         "faction": "Rebel Alliance",
@@ -4606,7 +4608,7 @@ pilotData_dict = json.loads("""
         "points": 20
     },
     {
-        "name": "\"Zeb\" Orrelios",
+        "name": "\\"Zeb\\" Orrelios",
         "id": 162,
         "unique": true,
         "faction": "Rebel Alliance",
@@ -4807,7 +4809,7 @@ pilotData_dict = json.loads("""
         "points": 31
     },
     {
-        "name": "\"Blue Ace\"",
+        "name": "\\"Blue Ace\\"",
         "id": 176,
         "unique": true,
         "faction": "Resistance",
@@ -4848,7 +4850,7 @@ pilotData_dict = json.loads("""
         "points": 24
     },
     {
-        "name": "\"Omega Ace\"",
+        "name": "\\"Omega Ace\\"",
         "id": 179,
         "unique": true,
         "faction": "First Order",
@@ -4861,7 +4863,7 @@ pilotData_dict = json.loads("""
         "points": 20
     },
     {
-        "name": "\"Epsilon Leader\"",
+        "name": "\\"Epsilon Leader\\"",
         "id": 180,
         "unique": true,
         "faction": "First Order",
@@ -4873,7 +4875,7 @@ pilotData_dict = json.loads("""
         "points": 19
     },
     {
-        "name": "\"Zeta Ace\"",
+        "name": "\\"Zeta Ace\\"",
         "id": 181,
         "unique": true,
         "faction": "First Order",
@@ -4935,7 +4937,7 @@ pilotData_dict = json.loads("""
         "points": 30
     },
     {
-        "name": "\"Red Ace\"",
+        "name": "\\"Red Ace\\"",
         "id": 186,
         "unique": true,
         "faction": "Resistance",
@@ -4949,7 +4951,7 @@ pilotData_dict = json.loads("""
         "points": 29
     },
     {
-        "name": "\"Omega Leader\"",
+        "name": "\\"Omega Leader\\"",
         "id": 187,
         "unique": true,
         "faction": "First Order",
@@ -4962,7 +4964,7 @@ pilotData_dict = json.loads("""
         "points": 21
     },
     {
-        "name": "\"Zeta Leader\"",
+        "name": "\\"Zeta Leader\\"",
         "id": 188,
         "unique": true,
         "faction": "First Order",
@@ -4975,7 +4977,7 @@ pilotData_dict = json.loads("""
         "points": 20
     },
     {
-        "name": "\"Epsilon Ace\"",
+        "name": "\\"Epsilon Ace\\"",
         "id": 189,
         "unique": true,
         "faction": "First Order",
@@ -5020,7 +5022,7 @@ pilotData_dict = json.loads("""
         "points": 19
     },
     {
-        "name": "\"Dea???\"",
+        "name": "\\"Dea???\\"",
         "id": 192,
         "unique": true,
         "faction": "Galactic Empire",

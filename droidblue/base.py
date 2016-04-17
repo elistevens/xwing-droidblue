@@ -188,27 +188,27 @@ def _movementFunction(angle, radius, base_offset):
     y = base_offset + math.sin(angle) * radius + math.cos(angle) * base_offset
     return [x, y, angle]
 
-for sb in [SmallBase, LargeBase]:
-    sb._maneuverOffsets_xyr = mo = {}
-    for i in [1, 2, 3]:
-        mo["turn#{i}r"] = _movementFunction(0.5 * math.pi, _movementConstants.turn[i], sb.width/2.0)
-        mo["turn#{i}l"] = [-mo["turn#{i}r"][0], mo["turn#{i}r"][1], -mo["turn#{i}r"][2]]
+for b in [SmallBase, LargeBase]:
+    b._maneuverOffsets_xyr = mo = {}
+    for i in ['1', '2', '3']:
+        mo['turnR'+i] = _movementFunction(0.5 * math.pi, _movementConstants['turn'][int(i)], b.width/2.0)
+        mo['turnL'+i] = [-mo['turnR'+i][0], mo['turnR'+i][1], -mo['turnR'+i][2]]
 
         # FIXME: need to implement the troll slide forward/back somehow...
-        mo["troll#{i}r"] = [mo["turn#{i}r"][0], mo["turn#{i}r"][1], mo["turn#{i}r"][2] + math.pi/2.0]
-        mo["troll#{i}l"] = [mo["turn#{i}l"][0], mo["turn#{i}l"][1], mo["turn#{i}l"][2] - math.pi/2.0]
+        mo['trollR'+i] = [mo['turnR'+i][0], mo['turnR'+i][1], mo['turnR'+i][2] + math.pi/2.0]
+        mo['trollL'+i] = [mo['turnL'+i][0], mo['turnL'+i][1], mo['turnL'+i][2] - math.pi/2.0]
 
-        mo["bank#{i}r"] = _movementFunction(0.25 * math.pi, _movementConstants.bank[i], sb.width/2.0)
-        mo["bank#{i}l"] = [-mo["bank#{i}r"][0], mo["bank#{i}r"][1], -mo["bank#{i}r"][2]]
+        mo['bankR'+i] = _movementFunction(0.25 * math.pi, _movementConstants['bank'][int(i)], b.width/2.0)
+        mo['bankL'+i] = [-mo['bankR'+i][0], mo['bankR'+i][1], -mo['bankR'+i][2]]
 
-        mo["sloop#{i}r"] = [mo["bank#{i}r"][0], mo["bank#{i}r"][1], mo["bank#{i}r"][2] + math.pi]
-        mo["sloop#{i}l"] = [mo["bank#{i}l"][0], mo["bank#{i}l"][1], mo["bank#{i}l"][2] + math.pi]
+        mo['sloopR'+i] = [mo['bankR'+i][0], mo['bankR'+i][1], mo['bankR'+i][2] + math.pi]
+        mo['sloopL'+i] = [mo['bankL'+i][0], mo['bankL'+i][1], mo['bankL'+i][2] + math.pi]
 
-    for i in [1, 2, 3, 4, 5]:
-        mo["forward#{i}"] = [0.0, _movementConstants['forward'][i] + sb.width, 0.0]
-        mo["kturn#{i}"] = [0.0, _movementConstants['forward'][i] + sb.width, math.pi]
+    for i in ['1', '2', '3', '4', '5']:
+        mo['forward'+i] = [0.0, _movementConstants['forward'][int(i)] + b.width, 0.0]
+        mo['kturn'+i] = [0.0, _movementConstants['forward'][int(i)] + b.width, math.pi]
 
-    mo["stop"] = [0.0, 0.0, 0.0]
+    mo['stop'] = [0.0, 0.0, 0.0]
 
 maneuver_list = list(SmallBase._maneuverOffsets_xyr)
 

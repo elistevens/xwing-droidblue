@@ -8,58 +8,73 @@ class Stepper(object):
         self.attack_id = attack_id
         self.target_id = target_id
 
-    def nextStep(self):
+    def nextStep(self, state):
         self.step_tup = self.step_iter.next()
 
 
     @staticmethod
-    def steps_round(player_count):
-        for se in _steps_startEnd():
-            yield ('setDials',) + se
+    def steps_round():
+        # for se in _steps_beforeAfter():
+        #     yield ('dials',) + se
+        yield ('dials',)
 
-        for se in _steps_startEnd(decloak=True):
-            for psinit in _steps_ps_init(player_count):
-                yield ('activation',) + se + psinit + ('chooseActivationShip',)
+        for beforeAfter in _steps_beforeAfter(decloak=True):
+            yield beforeAfter + ('activation',)
+            # for psinit in _steps_ps_init(player_count):
+            #     yield beforeAfter + ('activation',) + psinit + ('chooseActivationShip',)
 
-        for se in _steps_startEnd():
-            for psinit in _steps_ps_init(player_count, reverse=True):
-                yield ('combat',) + se + psinit + ('chooseCombatShip',)
+        for beforeAfter in _steps_beforeAfter():
+            yield beforeAfter + ('combat',)
+            # for psinit in _steps_ps_init(player_count, reverse=True):
+            #     yield beforeAfter + ('combat',) + psinit + ('chooseCombatShip',)
 
-        for se in _steps_startEnd():
-            for psinit in _steps_ps_init(player_count, reverse=True):
-                yield ('endphase',) + se + psinit + ('chooseEndShip',)
-
-
-    @staticmethod
-    def steps_activation():
-        for order in _steps_startEnd():
-            yield ('revealDial',) + order
-
-        for order in _steps_startEnd():
-            yield ('maneuver',) + order
-
-        for order in _steps_startEnd():
-            yield ('action',) + order
+        for beforeAfter in _steps_beforeAfter():
+            yield beforeAfter + ('endphase',)
+            # for psinit in _steps_ps_init(player_count, reverse=True):
+            #     yield beforeAfter + ('endphase',) + psinit + ('chooseEndShip',)
 
 
     @staticmethod
-    def steps_combat():
-        yield ('chooseTarget',)
+    def steps_dial():
+        yield ('setDial',)
 
-        for se in _steps_startEnd():
-            yield ('rollAttack',) + se
+    @staticmethod
+    def steps_activation(isIonized=False):
+        if not isIonized:
+            for beforeAfter in _steps_beforeAfter():
+                yield beforeAfter + ('revealDial',)
+
+        for beforeAfter in _steps_beforeAfter():
+            yield beforeAfter + ('moveShip',)
+
+        for beforeAfter in _steps_beforeAfter():
+            yield beforeAfter + ('checkPilotStress',)
+
+        for beforeAfter in _steps_beforeAfter():
+            yield beforeAfter + ('action',)
+
+
+    @staticmethod
+    def steps_combat(chooseTarget=True):
+        if chooseTarget:
+            yield ('chooseWeaponAndTarget',)
+
+        yield ('gatherAttackDice',)
+        for beforeAfter in _steps_beforeAfter():
+            yield beforeAfter + ('rollAttack',)
 
         yield ('defenderModifyAttack',)
         yield ('attackerModifyAttack',)
 
-        for se in _steps_startEnd():
-            yield ('rollDefense',) + se
+        yield ('gatherDefenseDice',)
+        for beforeAfter in _steps_beforeAfter():
+            yield beforeAfter + ('rollDefense',)
 
         yield ('attackerModifyDefense',)
         yield ('defenderModifyDefense',)
 
-        for se in _steps_startEnd():
-            yield ('compareResults',) + se
+        for beforeAfter in _steps_beforeAfter():
+            yield beforeAfter + ('compareResults',)
 
 
     @staticmethod
@@ -67,30 +82,23 @@ class Stepper(object):
         yield ('cleanup',)
 
 
-    # @staticmethod
-    # def steps_spendToken(token_str):
-    #     def _steps_spendToken_closure():
-    #         for order in _steps_startEnd():
-    #             yield (
-    #                   'spend{}'.format(token_str.title().replace(' ', '')),) + order
-    #
-    #     return _steps_spendToken_closure
+
+# def _steps_init(player_count):
+#     for init in range(player_count):
+#         yield (init,)
+#
+# # Need to change this up to instead just be the groups of pilots by PS
+# # can't hook into steps the current way
+# def _steps_ps_init(player_count, reverse=False):
+#     for ps in sorted(range(13), reverse=reverse):
+#         for init in _steps_init(player_count):
+#             yield (ps,) + init
 
 
-def _steps_init(player_count):
-    for init in range(player_count):
-        yield (init,)
-
-
-def _steps_ps_init(player_count, reverse=False):
-    for ps in sorted(range(13), reverse=reverse):
-        for init in _steps_init(player_count):
-            yield (ps,) + init
-
-
-def _steps_startEnd(decloak=False):
-    yield ('start',)
+def _steps_beforeAfter(decloak=False):
+    yield ('before',)
     if decloak:
         yield ('decloak',)
-    yield ('perform',)
-    yield ('end',)
+    # yield ('perform',)
+    yield tuple()
+    yield ('after',)

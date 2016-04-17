@@ -1,4 +1,4 @@
-from droidblue.cards.generics import PerformFocusActionEdge, PerformEvadeActionEdge
+from droidblue.defaults.generics import PerformFocusActionEdge, PerformEvadeActionEdge
 from droidblue.edge import SpendFocusTokenEdge, SpendEvadeTokenEdge
 from droidblue.rules import Rule
 from droidblue.steps import Stepper

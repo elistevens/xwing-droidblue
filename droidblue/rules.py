@@ -38,27 +38,39 @@ class Rule(object):
     def filterEdges(self, edge_list, state):
         return edge_list
 
+def _str2list(item):
+    if isinstance(item, str):
+        return [item]
+    elif isinstance(item, list):
+        return item
+    raise TypeError(str(type(item)))
+
+def _str2tup(item):
+    if isinstance(item, str):
+        return (item,)
+    elif isinstance(item, tuple):
+        return item
+    raise TypeError(str(type(item)))
 
 class ActiveAbilityRule(Rule):
     def __init__(self, state, pilot_id, step_list):
-        step_list = [step_tup + ('active', pilot_id) for step_tup in step_list]
-        super(ActiveAbilityRule, self).__init__(pilot_id, step_list)
+        step_list = [_str2tup(step_tup) + ('active', pilot_id) for step_tup in _str2list(step_list)]
+        super(ActiveAbilityRule, self).__init__(state, pilot_id, step_list)
 
 class AttackAbilityRule(Rule):
     """Note that this is a "when attacking" ability, not the actual attack."""
     def __init__(self, state, pilot_id, step_list):
-        step_list = [step_tup + ('attack', pilot_id) for step_tup in step_list]
-        super(AttackAbilityRule, self).__init__(pilot_id, step_list)
+        step_list = [_str2tup(step_tup) + ('attack', pilot_id) for step_tup in _str2list(step_list)]
+        super(AttackAbilityRule, self).__init__(state, pilot_id, step_list)
 
 class TargetAbilityRule(Rule):
     def __init__(self, state, pilot_id, step_list):
-        step_list = [step_tup + ('target', pilot_id) for step_tup in step_list]
-        super(TargetAbilityRule, self).__init__(pilot_id, step_list)
+        step_list = [_str2tup(step_tup) + ('target', pilot_id) for step_tup in _str2list(step_list)]
+        super(TargetAbilityRule, self).__init__(state, pilot_id, step_list)
 
 class PerformActionRule(ActiveAbilityRule):
     def __init__(self, state, pilot_id):
-        step_list = [('performAction',)]
-        super(PerformActionRule, self).__init__(pilot_id, step_list)
+        super(PerformActionRule, self).__init__(state, pilot_id, 'performAction')
 
     def isAvailable(self, state):
         ship = state.ship[self.pilot_id]
@@ -66,9 +78,8 @@ class PerformActionRule(ActiveAbilityRule):
             (ship.hasFlag('ignoreStress') or ship.numTokens('stress') == 0)
 
 
-class AttackRule(Rule):
-    pass
-
-
+class AttackRule(ActiveAbilityRule):
+    def __init__(self, state, pilot_id):
+        super(AttackRule, self).__init__(state, pilot_id, 'chooseWeaponAndTarget')
 
 

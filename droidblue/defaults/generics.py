@@ -1,5 +1,6 @@
-from droidblue.rules import AttackRule, PerformActionRule
 from droidblue.edge import Edge, SpendFocusTokenEdge, SpendEvadeTokenEdge
+from droidblue.rules import AttackRule, PerformActionRule
+
 
 class AttackPrimaryArcRule(AttackRule):
     card_type = 'generic'
@@ -26,7 +27,8 @@ class PerformFocusActionRule(PerformActionRule):
 
 class PerformFocusActionEdge(Edge):
     def transitionImpl(self, state):
-        state.ship[self.active_id].assignToken(state, 'focus')
+        state.assignToken(self.active_id, 'focus')
+
 
 # Perform evade
 class PerformEvadeActionRule(PerformActionRule):
@@ -37,7 +39,8 @@ class PerformEvadeActionRule(PerformActionRule):
 
 class PerformEvadeActionEdge(Edge):
     def transitionImpl(self, state):
-        state.ship[self.active_id].assignToken(state, 'evade')
+        state.assignToken(self.active_id, 'evade')
+
 
 # Spend focus
 class SpendFocusTokenToModifyAttackDiceEdge(SpendFocusTokenEdge):
@@ -51,11 +54,13 @@ class SpendFocusTokenToModifyDefenseDiceEdge(SpendFocusTokenEdge):
         super(SpendFocusTokenToModifyDefenseDiceEdge, self).transitionImpl(state)
         state.defenseDice_pool.modifyFaces('f', 'E', 99)
 
+
 # Spend evade
 class SpendEvadeTokenToAddEvadeResultEdge(SpendEvadeTokenEdge):
     def transitionImpl(self, state):
         super(SpendEvadeTokenToAddEvadeResultEdge, self).transitionImpl(state)
         state.defenseDice_pool.addResult('E')
+
 
 # Acquire Target Lock
 class PerformTargetLockActionRule(PerformActionRule):
@@ -67,7 +72,7 @@ class PerformTargetLockActionRule(PerformActionRule):
 
 class PerformTargetLockActionEdge(Edge):
     def transitionImpl(self, state):
-        state.ship[self.active_id].acquireTargetLock(state, 'focus')
+        state.pilots[self.active_id].acquireTargetLock(state, 'focus')
 
 class PerformBarrelRollActionRule(PerformActionRule):
     card_type = 'generic'
@@ -80,3 +85,5 @@ class PerformCloakActionRule(PerformActionRule):
 
 class PerformSlamActionRule(PerformActionRule):
     card_type = 'generic'
+
+

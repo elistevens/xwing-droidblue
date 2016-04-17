@@ -1,15 +1,18 @@
-from droidblue.dice import AttackDicePool, DefenseDicePool
+from __future__ import division
 
 import pytest
 
+from droidblue.dice import AttackDicePool, DefenseDicePool
+
+
 @pytest.fixture
-def atk1():
+def atk1_pool():
     return AttackDicePool(1)
 @pytest.fixture
-def atk2():
+def atk2_pool():
     return AttackDicePool(2)
 @pytest.fixture
-def atk3():
+def atk3_pool():
     return AttackDicePool(3)
 
 @pytest.fixture
@@ -22,9 +25,8 @@ def dfn2():
 def dfn3():
     return DefenseDicePool(3)
 
-def test_atk1_probs(atk1):
-    random_list = atk1.getRollRandomList()
-    result_dict = {pool.rolled_faces: prob_frac for (prob_frac, pool) in random_list}
+def test_atk1_pool_probs(atk1_pool):
+    result_dict = atk1_pool.rollDice()
     golden_dict = {
         'C': 1/8.,
         'H': 3/8.,
@@ -34,9 +36,10 @@ def test_atk1_probs(atk1):
     assert result_dict == golden_dict
     assert sum(result_dict.values()) == 1.0
 
-def test_atk2_probs(atk2):
-    random_list = atk2.getRollRandomList()
-    result_dict = {pool.rolled_faces: prob_frac for (prob_frac, pool) in random_list}
+    assert set(atk1_pool.cache) >= {0,1}
+
+def test_atk2_pool_probs(atk2_pool):
+    result_dict = atk2_pool.rollDice()
     golden_dict = {
         'CC':  1/64.,
         'CH':  6/64.,
@@ -52,9 +55,10 @@ def test_atk2_probs(atk2):
     assert result_dict == golden_dict
     assert sum(result_dict.values()) == 1.0
 
+    assert set(atk2_pool.cache) >= {0,1,2}
+
 def test_dfn1_probs(dfn1):
-    random_list = dfn1.getRollRandomList()
-    result_dict = {pool.rolled_faces: prob_frac for (prob_frac, pool) in random_list}
+    result_dict = dfn1.rollDice()
     golden_dict = {
         'E': 3/8.,
         'f': 2/8.,
@@ -63,9 +67,10 @@ def test_dfn1_probs(dfn1):
     assert result_dict == golden_dict
     assert sum(result_dict.values()) == 1.0
 
+    assert set(dfn1.cache) >= {0,1}
+
 def test_dfn2_probs(dfn2):
-    random_list = dfn2.getRollRandomList()
-    result_dict = {pool.rolled_faces: prob_frac for (prob_frac, pool) in random_list}
+    result_dict = dfn2.rollDice()
     golden_dict = {
         'EE':  9/64.,
         'Ef': 12/64.,
@@ -77,22 +82,31 @@ def test_dfn2_probs(dfn2):
     assert result_dict == golden_dict
     assert sum(result_dict.values()) == 1.0
 
+    assert set(dfn2.cache) >= {0,1,2}
+
+def test_modify():
+    hf_pool = AttackDicePool(0, rolled_faces='Hf')
+    hf_pool.modifyFaces('f', 'H', 99)
+    assert hf_pool.getResults() == 'HH'
+
 def test_reroll():
     hf_pool = AttackDicePool(0, rolled_faces='Hf')
-    choice_dict = hf_pool.getRerollChoiceDict('f', 1)
+    assert hf_pool.getResults() == 'Hf'
+    assert {'f', ''} == hf_pool.getRerollOptions('f', 1)
 
-    assert choice_dict[''].rolled_faces == 'Hf'
-    assert choice_dict[''].removed_faces == ''
-    assert choice_dict[''].rerolled_faces == None
-    assert choice_dict[''].count == 0
-    assert len(choice_dict[''].getRollRandomList()) == 1
+    hf_pool.flagForReroll('f')
+    assert hf_pool.getResults() == 'H'
 
-    assert choice_dict['f'].rolled_faces == 'H'
-    assert choice_dict['f'].removed_faces == 'f'
-    assert choice_dict['f'].rerolled_faces == None
-    assert choice_dict['f'].count == 1
-    assert len(choice_dict['f'].getRollRandomList()) == 4
+    result_dict = hf_pool.rollDice()
+    golden_dict = {
+        'C': 1/8.,
+        'H': 3/8.,
+        'f': 2/8.,
+        'x': 2/8.,
+    }
+    assert result_dict == golden_dict
+    assert sum(result_dict.values()) == 1.0
 
-    assert choice_dict.keys() == []
-
+    hf_pool.setReroll('x')
+    assert hf_pool.getResults() == 'Hx'
 
