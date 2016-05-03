@@ -1,61 +1,84 @@
-class Stepper(object):
-    wildcard_key = ('*',)
+import logging
+log = logging.getLogger(__name__)
+log.setLevel(logging.WARNING)
+log.setLevel(logging.INFO)
+log.setLevel(logging.DEBUG)
 
+from collections import deque
+
+class Stepper(object):
     def __init__(self, step_iter, active_id=None, attack_id=None, target_id=None):
-        self.step_iter = step_iter
+        self.step_deq = deque(step_iter)
         self.step_tup = None
+        self.count = None
         self.active_id = active_id
         self.attack_id = attack_id
         self.target_id = target_id
 
+        assert len(self.step_deq) > 0
+
     def nextStep(self, state):
-        self.step_tup = self.step_iter.next()
+        if not self.step_deq:
+            raise StopIteration()
+
+        self.step_tup = self.step_deq.popleft()
+
+        if isinstance(self.step_tup, str):
+            self.step_tup = (self.step_tup,)
+
+        return self.step_tup
+
+    @classmethod
+    def steps_setup(cls):
+        yield ('placeObstacles',)
+        yield ('placeShips',)
 
 
-    @staticmethod
-    def steps_round():
+    @classmethod
+    def steps_round(cls, dials=False):
         # for se in _steps_beforeAfter():
         #     yield ('dials',) + se
-        yield ('dials',)
+        if dials:
+            yield ('dials',)
 
         for beforeAfter in _steps_beforeAfter(decloak=True):
             yield beforeAfter + ('activation',)
             # for psinit in _steps_ps_init(player_count):
             #     yield beforeAfter + ('activation',) + psinit + ('chooseActivationShip',)
 
-        for beforeAfter in _steps_beforeAfter():
-            yield beforeAfter + ('combat',)
-            # for psinit in _steps_ps_init(player_count, reverse=True):
-            #     yield beforeAfter + ('combat',) + psinit + ('chooseCombatShip',)
+        # for beforeAfter in _steps_beforeAfter():
+        #     yield beforeAfter + ('combat',)
+        #     # for psinit in _steps_ps_init(player_count, reverse=True):
+        #     #     yield beforeAfter + ('combat',) + psinit + ('chooseCombatShip',)
+        #
+        # for beforeAfter in _steps_beforeAfter():
+        #     yield beforeAfter + ('endphase',)
+        #     # for psinit in _steps_ps_init(player_count, reverse=True):
+        #     #     yield beforeAfter + ('endphase',) + psinit + ('chooseEndShip',)
 
-        for beforeAfter in _steps_beforeAfter():
-            yield beforeAfter + ('endphase',)
-            # for psinit in _steps_ps_init(player_count, reverse=True):
-            #     yield beforeAfter + ('endphase',) + psinit + ('chooseEndShip',)
 
-
-    @staticmethod
-    def steps_dial():
+    @classmethod
+    def steps_dial(cls):
         yield ('setDial',)
 
-    @staticmethod
-    def steps_activation(isIonized=False):
+    @classmethod
+    def steps_activation(cls, isIonized=False):
         if not isIonized:
             for beforeAfter in _steps_beforeAfter():
                 yield beforeAfter + ('revealDial',)
 
         for beforeAfter in _steps_beforeAfter():
-            yield beforeAfter + ('moveShip',)
+            yield beforeAfter + ('performManeuver',)
 
         for beforeAfter in _steps_beforeAfter():
             yield beforeAfter + ('checkPilotStress',)
 
         for beforeAfter in _steps_beforeAfter():
-            yield beforeAfter + ('action',)
+            yield beforeAfter + ('performAction',)
 
 
-    @staticmethod
-    def steps_combat(chooseTarget=True):
+    @classmethod
+    def steps_combat(cls, chooseTarget=True):
         if chooseTarget:
             yield ('chooseWeaponAndTarget',)
 
@@ -77,8 +100,8 @@ class Stepper(object):
             yield beforeAfter + ('compareResults',)
 
 
-    @staticmethod
-    def steps_endphase():
+    @classmethod
+    def steps_endphase(cls):
         yield ('cleanup',)
 
 

@@ -1,6 +1,7 @@
-from droidblue.defaults.generics import PerformFocusActionEdge
-from droidblue.rules import ActiveAbilityRule
 from droidblue.steps import Stepper
+
+from droidblue.core.rules import ActiveAbilityRule
+from droidblue.defaults.actions import PerformFocusActionEdge
 
 
 class PredatorRule(ActiveAbilityRule):

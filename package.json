@@ -1,0 +1,26 @@
+{
+  "name": "droidblue",
+  "version": "0.1.0",
+  "description": "Droid Blue, X-Wing AI",
+  "main": "express/server.coffee",
+  "private": true,
+  "scripts": {
+    "build": "make"
+  },
+  "author": {
+    "name": "Eli Stevens",
+    "homepage": "https://github.com/elistevens"
+  },
+  "contributors": [
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/elistevens/droidblue"
+  },
+  "license": "MIT",
+  "devDependencies": {
+  },
+  "dependencies": {
+    "coffee-script": "^1.10.0"
+  }
+}

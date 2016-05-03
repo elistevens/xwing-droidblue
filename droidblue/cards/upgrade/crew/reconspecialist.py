@@ -1,30 +1,19 @@
-from droidblue.defaults.generics import PerformFocusActionEdge
-from droidblue.rules import ActiveAbilityRule
-from droidblue.steps import Stepper
+from droidblue.defaults.actions import PerformFocusActionRule, PerformFocusActionEdge
 
 
-class ReconSpecialistRule(ActiveAbilityRule):
+class ReconSpecialistRule(PerformFocusActionRule):
     card_type = 'upgrade'
     card_name = 'reconspecialist'
+    replacesRule_cls = PerformFocusActionRule
 
-    def __init__(self, state, pilot_id):
-        step_list = [Stepper.wildcard_key]
-        super(ReconSpecialistRule, self).__init__(state, pilot_id, step_list)
-
-    def filterEdges(self, edge_list, state):
-        new_list = []
-        for edge in edge_list:
-            if type(edge) == PerformFocusActionEdge:
-                edge = ReconSpecialistPerformFocusActionEdge(edge.active_id)
-
-            new_list.append(edge)
-
-        return new_list
+    def _getEdges(self, state):
+        return [ReconSpecialistPerformFocusActionEdge(self.pilot_id)]
 
 
 class ReconSpecialistPerformFocusActionEdge(PerformFocusActionEdge):
     def transitionImpl(self, state):
         state.assignToken(self.active_id, 'focus')
         state.assignToken(self.active_id, 'focus')
+        super(ReconSpecialistPerformFocusActionEdge, self).transitionImpl(state)
 
 rule_list = [ReconSpecialistRule]

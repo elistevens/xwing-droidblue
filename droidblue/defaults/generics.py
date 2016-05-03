@@ -1,53 +1,36 @@
-from droidblue.edge import Edge, SpendFocusTokenEdge, SpendEvadeTokenEdge
-from droidblue.rules import AttackRule, PerformActionRule
+from droidblue.core.edge import SpendFocusTokenEdge, SpendEvadeTokenEdge
 
-
-class AttackPrimaryArcRule(AttackRule):
-    card_type = 'generic'
-
-class AttackPrimaryAuxBackRule(AttackRule):
-    card_type = 'generic'
-
-class AttackPrimaryAuxSideRule(AttackRule):
-    card_type = 'generic'
-
-class AttackTorpedoAuxBackRule(AttackRule):
-    card_type = 'generic'
-
-class AttackPrimaryTurretRule(AttackRule):
-    card_type = 'generic'
+from droidblue.core.rules import AttackAbilityRule, TargetAbilityRule
 
 
 # Perform focus
-class PerformFocusActionRule(PerformActionRule):
-    card_type = 'generic'
-
-    def getEdges(self, state):
-        return [PerformFocusActionEdge(self.pilot_id)]
-
-class PerformFocusActionEdge(Edge):
-    def transitionImpl(self, state):
-        state.assignToken(self.active_id, 'focus')
-
 
 # Perform evade
-class PerformEvadeActionRule(PerformActionRule):
-    card_type = 'generic'
-
-    def getEdges(self, state):
-        return [PerformEvadeActionEdge(self.pilot_id)]
-
-class PerformEvadeActionEdge(Edge):
-    def transitionImpl(self, state):
-        state.assignToken(self.active_id, 'evade')
-
 
 # Spend focus
+class SpendFocusTokenToModifyAttackDiceRule(AttackAbilityRule):
+    card_type = 'generic'
+
+    def __init__(self, state, pilot_id):
+        super(SpendFocusTokenToModifyAttackDiceRule, self).__init__(state, 'attackerModifyAttack', pilot_id)
+
+    def _getEdges(self, state):
+        return [SpendFocusTokenToModifyAttackDiceEdge(self.pilot_id)]
+
 class SpendFocusTokenToModifyAttackDiceEdge(SpendFocusTokenEdge):
     def transitionImpl(self, state):
         super(SpendFocusTokenToModifyAttackDiceEdge, self).transitionImpl(state)
         state.attackDice_pool.modifyFaces('f', 'H', 99)
 
+
+class SpendFocusTokenToModifyDefenseDiceRule(TargetAbilityRule):
+    card_type = 'generic'
+
+    def __init__(self, state, pilot_id):
+        super(SpendFocusTokenToModifyDefenseDiceRule, self).__init__(state, 'defenderModifyDefense', pilot_id)
+
+    def _getEdges(self, state):
+        return [SpendFocusTokenToModifyDefenseDiceEdge(self.pilot_id)]
 
 class SpendFocusTokenToModifyDefenseDiceEdge(SpendFocusTokenEdge):
     def transitionImpl(self, state):
@@ -56,6 +39,15 @@ class SpendFocusTokenToModifyDefenseDiceEdge(SpendFocusTokenEdge):
 
 
 # Spend evade
+class SpendEvadeTokenToAddEvadeResultRule(TargetAbilityRule):
+    card_type = 'generic'
+
+    def __init__(self, state, pilot_id):
+        super(SpendEvadeTokenToAddEvadeResultRule, self).__init__(state, 'defenderModifyDefense', pilot_id)
+
+    def _getEdges(self, state):
+        return [SpendEvadeTokenToAddEvadeResultEdge(self.pilot_id)]
+
 class SpendEvadeTokenToAddEvadeResultEdge(SpendEvadeTokenEdge):
     def transitionImpl(self, state):
         super(SpendEvadeTokenToAddEvadeResultEdge, self).transitionImpl(state)
@@ -63,27 +55,10 @@ class SpendEvadeTokenToAddEvadeResultEdge(SpendEvadeTokenEdge):
 
 
 # Acquire Target Lock
-class PerformTargetLockActionRule(PerformActionRule):
-    card_type = 'generic'
-
-    def getEdges(self, state):
-        edge_list = [PerformTargetLockActionEdge(self.pilot_id)]
-        return edge_list
-
-class PerformTargetLockActionEdge(Edge):
-    def transitionImpl(self, state):
-        state.pilots[self.active_id].acquireTargetLock(state, 'focus')
-
-class PerformBarrelRollActionRule(PerformActionRule):
-    card_type = 'generic'
-
-class PerformBoostActionRule(PerformActionRule):
-    card_type = 'generic'
-
-class PerformCloakActionRule(PerformActionRule):
-    card_type = 'generic'
-
-class PerformSlamActionRule(PerformActionRule):
-    card_type = 'generic'
 
 
+rule_list = [
+    SpendFocusTokenToModifyAttackDiceRule,
+    SpendFocusTokenToModifyDefenseDiceRule,
+    SpendEvadeTokenToAddEvadeResultRule,
+]

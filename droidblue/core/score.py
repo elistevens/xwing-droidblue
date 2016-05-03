@@ -42,7 +42,7 @@ class MovDeltaScore(Score):
         hasUndestroyedShips_bool = False
         for pilot_id, ship in enumerate(state.ships):
             if ship.owner_id == player_id:
-                if state.getStat('isDestroyed', pilot_id):
+                if state._getStat('isDestroyed', pilot_id):
                     pointsLost_int += ship.points
                 elif ship.givesHalfMov():
                     pointsLost_int += int(ship.points / 2)
@@ -60,10 +60,10 @@ class MovAndHpDeltaScore(MovDeltaScore):
         hasUndestroyedShips_bool = False
         for pilot_id, ship in enumerate(state.ships):
             if ship.owner_id == player_id:
-                if state.getStat('isDestroyed', pilot_id):
+                if state._getStat('isDestroyed', pilot_id):
                     pointsLost_int += ship.points
                 else:
-                    pointsLost_int += int(ship.points * (state.getStat('totalHp', pilot_id) / state.getStat('currentHp', pilot_id)))
+                    pointsLost_int += int(ship.points * (state._getStat('totalHp', pilot_id) / state._getStat('currentHp', pilot_id)))
                     hasUndestroyedShips_bool = True
 
         return mov_score + 100 - pointsLost_int if hasUndestroyedShips_bool else 0

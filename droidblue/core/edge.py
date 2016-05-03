@@ -1,53 +1,28 @@
+import logging
+log = logging.getLogger(__name__)
+log.setLevel(logging.WARNING)
+log.setLevel(logging.INFO)
+log.setLevel(logging.DEBUG)
+
 __author__ = 'elis'
 
 import copy
-import itertools
-import random
+import re
 
-
-# class EdgeSet(object):
-#     def __init__(self, parent, skew=1.0, threshold=0.0):
-#         self.parent = parent
-#         self.edge_list = []
-#         self.skew = float(skew)
-#         self.threshold = float(threshold)
-#
-#     def addEdge(self, edge):
-#         edge.transitionFrom(self.parent)
-#         self.edge_list.append(edge)
-#
-#     def filter(self):
-#         weight_max = float(max(edge.weight for edge in self.edge_list))
-#
-#         self.edge_list = [edge for edge in self.edge_list if edge.weight >= weight_max * self.threshold]
-#         self.edge_list.sort(reverse=True, key=lambda edge: edge.weight)
-#
-#     def normalize(self):
-#         weight_sum = float(sum(edge.weight for edge in self.edge_list))
-#         if weight_sum != 1.0:
-#             for edge in self.edge_list:
-#                 edge.weight /= weight_sum
-#
-#     def randomChoice(self):
-#         self.normalize()
-#         rand_frac = random.random() ** self.skew
-#
-#         for i, edge in enumerate(self.edge_list):
-#             if edge.weight >= rand_frac:
-#                 return i, edge
-#
-#             rand_frac -= edge.weight
-#         else:
-#             assert rand_frac <= 1.0
-#
-#         assert False
 
 class Edge(object):
     usesSlop_bool = False
     mandatory_bool = False
 
-    def __init__(self, active_id):
+    def __init__(self, active_id, opportunity_list=None):
         self.active_id = active_id
+        self.opportunity_list = opportunity_list
+
+    def __repr__(self):
+        extra_str = ', '.join(['{}:{!r}'.format(k, v) for k, v in sorted(self.__dict__.iteritems())])
+        r = super(Edge, self).__repr__()
+        r = re.sub(r'\<droidblue\.([a-z]+\.)+', '<', r)
+        return r.replace('>', ' {}>'.format(extra_str))
 
     def computeLookaheadScore(self, score_cls, parent, slop, depth):
         state = copy.deepcopy(parent)
@@ -56,18 +31,23 @@ class Edge(object):
 
         return score_cls(state, slop, depth)
 
-    def getExactState(self, parent):
-        state = copy.deepcopy(parent)
-        state.slop = None
+    def getExactState(self, parent, doCopy=True):
+        if doCopy:
+            state = copy.deepcopy(parent)
+            state.fastforward_list = []
+        else:
+            state = parent
+
+        state.useOpportunity(self.opportunity_list)
+        # state.slop = None
         self.transitionImpl(state)
         return state
 
     def transitionImpl(self, state):
         raise NotImplementedError()
 
-class ChooseNoneEdge(Edge):
+class ChoosePassEdge(Edge):
     def transitionImpl(self, state):
-        state.nextStep()
         return state
 
 
@@ -104,7 +84,7 @@ class SpendTokenEdge(Edge):
         self.token_id = token_id if token_id is not None else active_id
 
     def transitionImpl(self, state):
-        from droidblue.steps import Stepper
+        from droidblue.core.steps import Stepper
         state.ship[self.token_id].removeToken(self.token_str)
         state.pushStepper(Stepper(['spendToken-{}'.format(self.token_str)], active_id=self.active_id))
 

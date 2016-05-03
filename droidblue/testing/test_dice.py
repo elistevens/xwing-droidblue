@@ -1,29 +1,8 @@
 from __future__ import division
 
-import pytest
+from droidblue.core.dice import AttackDicePool
+from droidblue.testing.fixtures import *
 
-from droidblue.dice import AttackDicePool, DefenseDicePool
-
-
-@pytest.fixture
-def atk1_pool():
-    return AttackDicePool(1)
-@pytest.fixture
-def atk2_pool():
-    return AttackDicePool(2)
-@pytest.fixture
-def atk3_pool():
-    return AttackDicePool(3)
-
-@pytest.fixture
-def dfn1():
-    return DefenseDicePool(1)
-@pytest.fixture
-def dfn2():
-    return DefenseDicePool(2)
-@pytest.fixture
-def dfn3():
-    return DefenseDicePool(3)
 
 def test_atk1_pool_probs(atk1_pool):
     result_dict = atk1_pool.rollDice()

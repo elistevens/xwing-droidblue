@@ -1,4 +1,4 @@
-from droidblue.rules import AttackAbilityRule, TargetAbilityRule
+from droidblue.core.rules import AttackAbilityRule, TargetAbilityRule
 
 class OmegaLeaderAttackRule(AttackAbilityRule):
     card_type = 'pilot'
