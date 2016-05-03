@@ -25,11 +25,9 @@ def swap(squad, pilot=None, noUpgrades=False, points=None):
 
 def _cleanup(s):
     d = json.loads(s)
-
     for key in ['vendor', 'description', 'version', 'name']:
         if key in d:
             del d[key]
-
     print json.dumps(d, indent=4)
 
 
@@ -121,3 +119,156 @@ xwt70_ept = {
 }
 xwt70_generic = swap(tint_ept, 'bluesquadronnovice', True, 24)
 
+awing_swarm = {
+    "faction": "rebel",
+    "points": 100,
+    "pilots": [
+        {
+            "ship": "awing",
+            "points": 25,
+            "name": "greensquadronpilot",
+            "upgrades": {
+                "title": [
+                    "awingtestpilot"
+                ],
+                "ept": [
+                    "pushthelimit",
+                    "predator"
+                ],
+                "mod": [
+                    "autothrusters"
+                ],
+                "missile": [
+                    "chardaanrefit"
+                ]
+            }
+        },
+        {
+            "ship": "awing",
+            "points": 25,
+            "name": "greensquadronpilot",
+            "upgrades": {
+                "title": [
+                    "awingtestpilot"
+                ],
+                "ept": [
+                    "pushthelimit",
+                    "predator"
+                ],
+                "mod": [
+                    "autothrusters"
+                ],
+                "missile": [
+                    "chardaanrefit"
+                ]
+            }
+        },
+        {
+            "ship": "awing",
+            "points": 25,
+            "name": "greensquadronpilot",
+            "upgrades": {
+                "title": [
+                    "awingtestpilot"
+                ],
+                "ept": [
+                    "pushthelimit",
+                    "predator"
+                ],
+                "mod": [
+                    "autothrusters"
+                ],
+                "missile": [
+                    "chardaanrefit"
+                ]
+            }
+        },
+        {
+            "ship": "awing",
+            "points": 25,
+            "name": "greensquadronpilot",
+            "upgrades": {
+                "title": [
+                    "awingtestpilot"
+                ],
+                "ept": [
+                    "pushthelimit",
+                    "predator"
+                ],
+                "mod": [
+                    "autothrusters"
+                ],
+                "missile": [
+                    "chardaanrefit"
+                ]
+            }
+        }
+    ]
+}
+
+howlcrack_swarm = {
+    "faction": "imperial",
+    "points": 100,
+    "pilots": [
+        {
+            "ship": "tiefighter",
+            "points": 19,
+            "name": "howlrunner",
+            "upgrades": {
+                "ept": [
+                    "crackshot"
+                ]
+            }
+        },
+        {
+            "ship": "tiefighter",
+            "points": 15,
+            "name": "blacksquadronpilot",
+            "upgrades": {
+                "ept": [
+                    "crackshot"
+                ]
+            }
+        },
+        {
+            "ship": "tiefighter",
+            "points": 15,
+            "name": "blacksquadronpilot",
+            "upgrades": {
+                "ept": [
+                    "crackshot"
+                ]
+            }
+        },
+        {
+            "ship": "tiefighter",
+            "points": 15,
+            "name": "blacksquadronpilot",
+            "upgrades": {
+                "ept": [
+                    "crackshot"
+                ]
+            }
+        },
+        {
+            "ship": "tiefighter",
+            "points": 15,
+            "name": "blacksquadronpilot",
+            "upgrades": {
+                "ept": [
+                    "crackshot"
+                ]
+            }
+        },
+        {
+            "ship": "tiefofighter",
+            "points": 21,
+            "name": "zetaleader",
+            "upgrades": {
+                "ept": [
+                    "crackshot"
+                ]
+            }
+        }
+    ]
+}

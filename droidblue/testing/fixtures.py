@@ -32,6 +32,16 @@ def vs_state():
 
     return state
 
+@pytest.fixture
+def swarm_state():
+    const = ConstantState([squads.awing_swarm, squads.howlcrack_swarm])
+    state = BoardState(const.const_id)
+
+    state.pilots[0]._changePosition(-40 * 3.5, 0, math.pi/2)
+    state.pilots[1]._changePosition(40 * 3.5, 0, -math.pi/2)
+
+    return state
+
 
 @pytest.fixture
 def atk1_pool():

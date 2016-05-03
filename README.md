@@ -27,6 +27,36 @@ provide an edge that removes a focus token and converts eyes to hits. At the
 same time, the rule for Carnor Jax could remove that edge from the list of 
 valid options. 
 
+Future scaling
+---
+
+The idea is that the final state of flow will be something along the lines of:
+
+- UI layer constructs initial game state, starts main loop
+- CPython neural network worker(s) 
+    - Evaluate state for likelihood of win
+    - Also dial suggestions
+- PyPy state space search workers
+    - Prune dial search based on NN dial suggestions
+    - Alpha-beta search through intra-round choices (actions, targeting, spending tokens)
+    - End of round evaluation goes back to CPy NN layer, repeats until target depth reached
+    
+Current intent is to have each of the three layers above communicate via ZeroMQ 
+python bindings. Should make for seamless state transfer, and allow for 
+multiple hosts should the need arise.
+
+Performance notes
+---
+
+CPython:
+
+Current implementation uses ~10KB of RAM per BoardState instance. 
+`copy.deepcopy` can make about 1k copies per second.
+
+PyPy:
+
+Untested. Likely higher RAM usage.
+
 TODO
 ===
 
