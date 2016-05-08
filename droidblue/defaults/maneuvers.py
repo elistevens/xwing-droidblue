@@ -1,3 +1,9 @@
+import logging
+log = logging.getLogger(__name__)
+log.setLevel(logging.WARNING)
+log.setLevel(logging.INFO)
+# log.setLevel(logging.DEBUG)
+
 import itertools
 
 from droidblue.core.edge import Edge
@@ -106,6 +112,7 @@ class PerformManeuverEdge(Edge):
         elif color_int == SetDialRule.green:
             state.setFlag(self.active_id, 'checkPilotStress:green')
 
+        log.info("{}: {}".format(self.active_id, maneuver_str))
         pilot_obj.performManeuver(maneuver_str)
 
 rule_list = [SetDialRule, RevealDialRule, PerformManeuverRule]

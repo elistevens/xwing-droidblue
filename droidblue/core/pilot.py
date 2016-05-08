@@ -6,15 +6,6 @@ log.setLevel(logging.INFO)
 
 import math
 
-import droidblue.defaults
-import droidblue.defaults.actions
-import droidblue.defaults.attacks
-import droidblue.defaults.choose
-import droidblue.defaults.generics
-import droidblue.defaults.maneuvers
-
-from droidblue.cards import xws
-
 from droidblue.core.base import Base
 from droidblue.util import importstr
 
@@ -62,12 +53,17 @@ class Pilot(Base):
 
     @classmethod
     def initRules(cls, const, pilot_id, upgrade_offset, faction_str, pilot_json):
+        import droidblue.defaults.actions
+        import droidblue.defaults.attacks
+        import droidblue.defaults.choose
+        import droidblue.defaults.maneuvers
+        from droidblue.cards import xws
+
         # Generic rules
         rule_list = []
         rule_list.extend(droidblue.defaults.actions.rule_list)
         rule_list.extend(droidblue.defaults.attacks.rule_list)
         rule_list.extend(droidblue.defaults.choose.rule_list)
-        rule_list.extend(droidblue.defaults.generics.rule_list)
         rule_list.extend(droidblue.defaults.maneuvers.rule_list)
 
         for xws_dict in [xws.ship_dict[pilot_json['ship']], xws.pilot_dict[pilot_json['name']]]:
@@ -99,7 +95,7 @@ class Pilot(Base):
         # Can't fold in the upgrade rules to the above, since we need to check
         # the cards for discard, etc.
         upgrade_count = 0
-        for slot_str, upgrade_list in pilot_json['upgrades'].iteritems():
+        for slot_str, upgrade_list in pilot_json.get('upgrades', {}).iteritems():
             for upgrade_str in upgrade_list:
                 module_str = 'droidblue.upgrade.{}.{}'.format(slot_str, upgrade_str)
 
@@ -127,6 +123,7 @@ class Pilot(Base):
         j['stats'] = {k: state.getStat(self.pilot_id, k) for k in state.const.stat_list}
         j['tokens'] = {k: state.getStat(self.pilot_id, k) for k in state.token_list}
         j['flags'] = {k: state.getStat(self.pilot_id, k) for k in state.flag_list}
+        j['damage'] = [int(n) for n in state.damage_array[self.pilot_id] if n]
 
         j['position'] = {
             'x': self.x,

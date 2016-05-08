@@ -14,9 +14,9 @@ import droidblue.defaults.attacks
 from droidblue.util import canonicalize
 
 attackIcon2rule_dict = {
-    "xwing-miniatures-font-attack-frontback": droidblue.defaults.attacks.AttackPrimaryAuxBackRule,
-    "xwing-miniatures-font-attack-180": droidblue.defaults.attacks.AttackPrimaryAuxSideRule,
-    "xwing-miniatures-font-attack-turret": droidblue.defaults.attacks.AttackPrimaryTurretRule,
+    "xwing-miniatures-font-attack-frontback": [droidblue.defaults.attacks.AttackPrimaryAuxBackRule, droidblue.defaults.attacks.AttackPrimaryForwardRule],
+    "xwing-miniatures-font-attack-180": [droidblue.defaults.attacks.AttackPrimaryAuxSideRule],
+    "xwing-miniatures-font-attack-turret": [droidblue.defaults.attacks.AttackPrimaryTurretRule],
 }
 translate_dict = {
     'attack': 'atk',
@@ -34,7 +34,9 @@ for ship_str, raw_dict in raw.shipData_dict.iteritems():
     rule_list = []
 
     if 'attack_icon' in raw_dict:
-        rule_list.append(attackIcon2rule_dict[raw_dict['attack_icon']])
+        rule_list.extend(attackIcon2rule_dict[raw_dict['attack_icon']])
+    else:
+        rule_list.append(droidblue.defaults.attacks.AttackPrimaryForwardRule)
 
     for action_str in raw_dict['actions']:
         rule_str = 'Perform{}ActionRule'.format(action_str.title().replace(' ', ''))

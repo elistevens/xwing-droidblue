@@ -26,6 +26,8 @@ class Stepper(object):
         if isinstance(self.step_tup, str):
             self.step_tup = (self.step_tup,)
 
+        log.debug("{}: {}, {}, {}".format(self.step_tup, self.active_id, self.attack_id, self.target_id))
+
         return self.step_tup
 
     @classmethod
@@ -46,15 +48,15 @@ class Stepper(object):
             # for psinit in _steps_ps_init(player_count):
             #     yield beforeAfter + ('activation',) + psinit + ('chooseActivationShip',)
 
-        # for beforeAfter in _steps_beforeAfter():
-        #     yield beforeAfter + ('combat',)
-        #     # for psinit in _steps_ps_init(player_count, reverse=True):
-        #     #     yield beforeAfter + ('combat',) + psinit + ('chooseCombatShip',)
-        #
-        # for beforeAfter in _steps_beforeAfter():
-        #     yield beforeAfter + ('endphase',)
-        #     # for psinit in _steps_ps_init(player_count, reverse=True):
-        #     #     yield beforeAfter + ('endphase',) + psinit + ('chooseEndShip',)
+        for beforeAfter in _steps_beforeAfter():
+            yield beforeAfter + ('combat',)
+            # for psinit in _steps_ps_init(player_count, reverse=True):
+            #     yield beforeAfter + ('combat',) + psinit + ('chooseCombatShip',)
+
+        for beforeAfter in _steps_beforeAfter():
+            yield beforeAfter + ('endphase',)
+            # for psinit in _steps_ps_init(player_count, reverse=True):
+            #     yield beforeAfter + ('endphase',) + psinit + ('chooseEndShip',)
 
 
     @classmethod
@@ -78,18 +80,19 @@ class Stepper(object):
 
 
     @classmethod
-    def steps_combat(cls, chooseTarget=True):
-        if chooseTarget:
-            yield ('chooseWeaponAndTarget',)
+    def steps_combat(cls):
+        yield ('chooseWeaponAndTarget',)
 
-        yield ('gatherAttackDice',)
+    @classmethod
+    def steps_attack(cls):
+        yield ('gatherExtraAttackDice',)
         for beforeAfter in _steps_beforeAfter():
             yield beforeAfter + ('rollAttack',)
 
         yield ('defenderModifyAttack',)
         yield ('attackerModifyAttack',)
 
-        yield ('gatherDefenseDice',)
+        yield ('gatherExtraDefenseDice',)
         for beforeAfter in _steps_beforeAfter():
             yield beforeAfter + ('rollDefense',)
 

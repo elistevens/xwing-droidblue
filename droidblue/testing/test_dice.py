@@ -1,6 +1,5 @@
 from __future__ import division
 
-from droidblue.core.dice import AttackDicePool
 from droidblue.testing.fixtures import *
 
 

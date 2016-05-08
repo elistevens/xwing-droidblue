@@ -3,7 +3,6 @@ from __future__ import division
 import copy
 
 from droidblue.testing.fixtures import *
-import droidblue.defaults.generics as generics
 import droidblue.defaults.choose as choose
 
 from droidblue.core.steps import Stepper
@@ -42,19 +41,21 @@ def test_performAction(single_state):
     assert not new_state.getEdges(fastforward_bool=False)
 
 
-def test_rules(single_state):
-    print sorted(single_state.edgeRules_dict.keys())
-    print sorted(single_state.const.edgeRules_dict.keys())
+def test_rules(vs_state):
+    state = vs_state
 
-    for step_tup, rule_list in sorted(single_state.const.edgeRules_dict.iteritems()):
+    print sorted(state.edgeRules_dict.keys())
+    print sorted(state.const.edgeRules_dict.keys())
+
+    for step_tup, rule_list in sorted(state.const.edgeRules_dict.iteritems()):
         print step_tup
         # print '    ', rule_list
 
         for rule in rule_list:
-            # assert rule.getEdges(single_state)
+            # assert rule.getEdges(state)
 
             print '  ', rule
-            for edge in rule._getEdges(single_state):
+            for edge in rule._getEdges(state) or []:
                 print '    ', edge
 
 

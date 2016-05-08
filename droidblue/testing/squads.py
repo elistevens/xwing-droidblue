@@ -272,3 +272,15 @@ howlcrack_swarm = {
         }
     ]
 }
+
+yt1300_generic = {
+    "faction": "rebel",
+    "points": 27,
+    "pilots": [
+        {
+            "ship": "yt1300",
+            "points": 27,
+            "name": "outerrimsmuggler"
+        }
+    ]
+}

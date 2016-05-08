@@ -179,9 +179,9 @@ class BoardState(StateBase):
         'checkPilotStress:green',
         'isDestroyed',
 
-        'chosen_dials',
-        'chosen_activation',
-        'chosen_combat',
+        # 'chosen_dials',
+        # 'chosen_activation',
+        # 'chosen_combat',
     ]
     flag_set = set(flag_list)
     targetLock_list = [
@@ -251,10 +251,6 @@ class BoardState(StateBase):
         replaced_set = set(rule.replacesRule_cls for rule in rule_list if rule.replacesRule_cls)
         rule_list = sorted([rule for rule in rule_list if type(rule) not in replaced_set])
         rule_list = sorted([rule for rule in rule_list if rule.isAvailable(self)])
-
-        # FIXME: need to implement situations where two players both have rules
-        # FIXME: allowing them to do things, but we only go with the player who
-        # FIXME: has init
 
         return rule_list
 
@@ -356,7 +352,7 @@ class BoardState(StateBase):
                 pilot_id = self.edge_list[0].active_id
                 player_id = self.getStat(pilot_id, 'player_id')
                 opportunity_key = ('pass', player_id) + self.getOpportunityStepKey()
-                self.edge_list.append(ChoosePassEdge(pilot_id, opportunity_key))
+                self.edge_list.append(ChoosePassEdge(pilot_id, [opportunity_key]))
 
             if fastforward_bool:
                 # Next/Fastforward if nothing interesting to choose from
@@ -393,9 +389,10 @@ class BoardState(StateBase):
     def removeToken(self, pilot_id, token_str):
         assert token_str in self.token_set
         token_count = self._getStat(pilot_id, token_str)
-        if token_count > 0:
-            self._setRawStat(pilot_id, token_str, token_count - 1)
-            self.pushStepper(Stepper(['remove_{}'.format(token_str)], active_id=pilot_id))
+        assert token_count > 0
+
+        self._setRawStat(pilot_id, token_str, token_count - 1)
+        self.pushStepper(Stepper(['remove_{}'.format(token_str)], active_id=pilot_id))
 
     def clearToken(self, pilot_id, token_str):
         assert token_str in self.token_set
@@ -421,6 +418,21 @@ class BoardState(StateBase):
 
     # FIXME: add acquire/spend/discard target lock functions
 
+    def dealDamage(self, pilot_id, faceup):
+        for i in range(self.damage_array.shape[1]):
+            if self.damage_array[pilot_id, i] == 0:
+                # FIXME: make this a random card draw?
+                self.damage_array[pilot_id, i] = 1
+
+                if not faceup:
+                    self.damage_array[pilot_id, i] *= -1
+
+                break
+
+        if faceup:
+            self.pushStepper(Stepper(['dealtCrit'], active_id=pilot_id))
+        else:
+            self.pushStepper(Stepper(['dealtHit'], active_id=pilot_id))
 
     # Stepper stuff
     def nextRound(self, includeDials_bool=True):
@@ -519,7 +531,7 @@ class BoardState(StateBase):
 
 
     def useOpportunity(self, opportunity_list):
-        assert isinstance(opportunity_list, list)
+        assert isinstance(opportunity_list, list), repr(opportunity_list)
         self.usedOpportunity_set.update(opportunity_list)
 
     def getOpportunityStepKey(self):

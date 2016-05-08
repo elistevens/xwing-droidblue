@@ -1,5 +1,13 @@
 from __future__ import division
 
+# logging
+import logging
+log = logging.getLogger(__name__)
+log.setLevel(logging.WARNING)
+# log.setLevel(logging.INFO)
+# log.setLevel(logging.DEBUG)
+
+
 import math
 
 class Point(object):
@@ -51,6 +59,10 @@ class Square(Point):
         self._changePosition(x, y, h)
 
     @property
+    def heading_degrees(self):
+        return math.degrees(self.heading_radians)
+
+    @property
     def inner_radius(self):
         return self.width / 2.0
 
@@ -79,6 +91,9 @@ class Square(Point):
 
         self.dx = abs(sin / self.inner_radius)
         self.dy = abs(cos / self.inner_radius)
+
+    def _resetPosition(self):
+        self._changePosition(-self.x, -self.y, -self.heading_radians)
 
     @property
     def corners(self):
@@ -139,6 +154,11 @@ class Base(Square):
     _maneuverOffsets_xyr = [{}, {}]
     _widths = [40.0, 80.0]
 
+    arcForward_index = 0
+    arcSide_index = 1
+    arcBack_index = 2
+    arcTurret_index = 3
+
         # self.hasAuxBackArc = args.hasAuxBackArc or False
         # self.hasAuxWideArc = args.hasAuxWideArc or False
 
@@ -152,31 +172,48 @@ class Base(Square):
         # point to parallel side
         return self.corners
 
-    # def getArcRanges(self, other_base):
-    #     arcs = {}
-    #
-    #     for other_p in other_base._getRangeCheckPoints(self):
-    #         dx = self.center.x - other_p.x
-    #         dy = self.center.y - other_p.y
-    #         angle_min = abs(math.atan2(dy, dx) - self.heading_radians)
-    #
-    #         distance_min = min([other_p.distance(this_p) for this_p in self._getRangeCheckPoints(other_base)])
-    #
-    #         arcs['range'] == min(distance_min, arcs['range'] or LONG_RANGE)
-    #
-    #         if angle_min < self.arcAngle:
-    #             arcs['front'] == min(distance_min, arcs['front'] or LONG_RANGE)
-    #
-    #         elif self.hasAuxWideArc and angle_min < math.pi / 2.0:
-    #             arcs['auxwide'] == min(distance_min, arcs['auxwide'] or LONG_RANGE)
-    #
-    #         elif self.hasAuxBackArc and angle_min > math.pi - self.arcAngle:
-    #             arcs['auxback'] == min(distance_min, arcs['auxback'] or LONG_RANGE)
-    #
-    #     return arcs
-    #
-    # def getRange(self, other_base):
-    #     return [min(4, math.ceil(self.getArcRanges(other_base)['range'] / 100.0)), this_p, other_p]
+    def getArcDistances(self, other_base):
+        # front, side, turret, back
+        # Back is last, due to the *= -1
+
+        angles = [math.radians(a) for a in [40, 90, 140, 180]]
+        arcs = [LONG_RANGE] * 4
+
+        for other_p in other_base._getRangeCheckPoints(self):
+            dx = other_p.x - self.x
+            dy = other_p.y - self.y
+
+            # log.info("x:{}, y:{}".format(dx, dy))
+
+            distance_p = min([other_p.distance(this_p) for this_p in self._getRangeCheckPoints(other_base)])
+            angle_p = math.atan2(dy, dx) - self.heading_radians
+            while angle_p > math.pi:
+                angle_p -= math.pi * 2
+            while angle_p < -math.pi:
+                angle_p += math.pi * 2
+
+            assert angle_p <= math.pi
+            assert angle_p >= -math.pi
+
+
+            for i, comparison_angle in enumerate(angles):
+                # if i == 3:
+                #     angle_min *= -1
+                #     comparison_angle *= -1
+
+                log.debug("{}: {} >= {}, at {}".format(i, math.degrees(comparison_angle), math.degrees(angle_p), distance_p))
+
+                if i == self.arcBack_index:
+                    if abs(angle_p) >= comparison_angle:
+                        arcs[i] = min(arcs[i], distance_p)
+                else:
+                    if abs(angle_p) <= comparison_angle:
+                        arcs[i] = min(arcs[i], distance_p)
+
+        return arcs
+
+    def getArcRanges(self, other_base):
+        return [min(4, int(math.ceil(d / 100.0))) for d in self.getArcDistances(other_base)]
 
 
 # http://teamcovenant.com/mu0n/2013/11/28/the-road-to-4-6-0-and-better-firing-arcs/
@@ -185,7 +222,7 @@ _movementConstants = {
     'turn':     [0, 35, 63, 90],
     'bank':     [0, 80, 130, 180],
     'forward':  [0, 40, 80, 120, 160, 200],
-    'range':    [0, 100, 200, 300, 400, 500, LONG_RANGE]
+    # 'range':    [0, 100, 200, 300, 400, 500, LONG_RANGE]
 }
 
 
@@ -198,16 +235,14 @@ for j, width in enumerate(Base._widths):
     mo = Base._maneuverOffsets_xyr[j]
     for i in ['1', '2', '3']:
         mo['turnR' + i] = _movementFunction(0.5 * math.pi, _movementConstants['turn'][int(i)], width / 2.0)
-        mo['turnL' + i] = [-mo['turnR' + i][0], mo['turnR' + i][1], -
-        mo['turnR' + i][2]]
+        mo['turnL' + i] = [-mo['turnR' + i][0], mo['turnR' + i][1], -mo['turnR' + i][2]]
 
         # FIXME: need to implement the troll slide forward/back somehow...
         mo['trollR' + i] = [mo['turnR' + i][0], mo['turnR' + i][1], mo['turnR' + i][2] + math.pi / 2.0]
         mo['trollL' + i] = [mo['turnL' + i][0], mo['turnL' + i][1], mo['turnL' + i][2] - math.pi / 2.0]
 
         mo['bankR' + i] = _movementFunction(0.25 * math.pi, _movementConstants['bank'][int(i)], width / 2.0)
-        mo['bankL' + i] = [-mo['bankR' + i][0], mo['bankR' + i][1], -
-        mo['bankR' + i][2]]
+        mo['bankL' + i] = [-mo['bankR' + i][0], mo['bankR' + i][1], -mo['bankR' + i][2]]
 
         mo['sloopR' + i] = [mo['bankR' + i][0], mo['bankR' + i][1], mo['bankR' + i][2] + math.pi]
         mo['sloopL' + i] = [mo['bankL' + i][0], mo['bankL' + i][1], mo['bankL' + i][2] + math.pi]

@@ -45,6 +45,10 @@ Current intent is to have each of the three layers above communicate via ZeroMQ
 python bindings. Should make for seamless state transfer, and allow for 
 multiple hosts should the need arise.
 
+http://zguide.zeromq.org/py:all
+http://zeromq.org/bindings:python
+
+
 Performance notes
 ---
 

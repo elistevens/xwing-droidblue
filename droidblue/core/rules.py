@@ -27,6 +27,7 @@ class Rule(object):
         assert isinstance(pilot_id, int)
         assert isinstance(upgrade_id, (int, type(None)))
 
+        self.opportunity_key = "{}:{}:{}".format(type(self).__name__, id(self), pilot_id)
         self.pilot_id = pilot_id
         self.upgrade_id = upgrade_id
 
@@ -48,7 +49,10 @@ class Rule(object):
         return (self.priority, self.pilot_id, str(type(self)))
 
     def __lt__(self, other):
-        return self._sortKey() < other._sortKey()
+        try:
+            return self._sortKey() < other._sortKey()
+        except:
+            return True
 
     def __eq__(self, other):
         return id(self) == id(other)
@@ -61,7 +65,7 @@ class Rule(object):
         return True
 
     def getOpportunityKey(self, state):
-        opportunity_key = (self,)
+        opportunity_key = (self.opportunity_key,)
         if not self.isOncePerRound_bool:
             opportunity_key += state.getOpportunityStepKey()
 
@@ -82,11 +86,15 @@ class Rule(object):
 
         opportunity_list = self.getOpportunityKey(state)
 
+        # log.info('===============================')
+        # log.info(opportunity_list)
+        # log.info(sorted(state.usedOpportunity_set))
+
         for opportunity_key in opportunity_list:
             if opportunity_key in state.usedOpportunity_set:
                 return []
 
-        edge_list = self._getEdges(state)
+        edge_list = self._getEdges(state) or []
 
         for edge in edge_list:
             assert edge.opportunity_list is None

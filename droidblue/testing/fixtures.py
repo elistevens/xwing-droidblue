@@ -27,8 +27,18 @@ def vs_state():
     const = ConstantState([squads.xwt70_ept, squads.tint_ept])
     state = BoardState(const.const_id)
 
-    state.pilots[0]._changePosition(-40 * 3.5, 0, math.pi/2)
-    state.pilots[1]._changePosition(40 * 3.5, 0, -math.pi/2)
+    state.pilots[0]._changePosition(-140, 0, 0)
+    state.pilots[1]._changePosition( 140, 0, math.pi)
+
+    return state
+
+@pytest.fixture
+def chase_state():
+    const = ConstantState([squads.tint_ept, squads.yt1300_generic])
+    state = BoardState(const.const_id)
+
+    state.pilots[0]._changePosition(-50, 0, 0)
+    state.pilots[1]._changePosition( 50, 0, 0)
 
     return state
 
@@ -37,8 +47,8 @@ def swarm_state():
     const = ConstantState([squads.awing_swarm, squads.howlcrack_swarm])
     state = BoardState(const.const_id)
 
-    state.pilots[0]._changePosition(-40 * 3.5, 0, math.pi/2)
-    state.pilots[1]._changePosition(40 * 3.5, 0, -math.pi/2)
+    state.pilots[0]._changePosition(-140, 0, math.pi/2)
+    state.pilots[1]._changePosition( 140, 0, -math.pi/2)
 
     return state
 

@@ -1,4 +1,9 @@
 from __future__ import division
+import logging
+log = logging.getLogger(__name__)
+log.setLevel(logging.WARNING)
+log.setLevel(logging.INFO)
+log.setLevel(logging.DEBUG)
 
 __author__ = 'elis'
 
@@ -32,12 +37,13 @@ class DicePool(object):
     def clean(cls, faces):
         return ''.join(sorted(faces))
 
-    def __init__(self, count=0, rolled_faces='', rerolled_faces=''):
+    def __init__(self, count=0, rolled_faces='', rerolled_faces='', added_faces=''):
         self.count = count
         self.total = None
 
         self.rolled_faces = rolled_faces
         self.rerolled_faces = rerolled_faces
+        self.added_faces = added_faces
 
     def rollDice(self):
         return self._rollDice(self.count)
@@ -93,8 +99,12 @@ class DicePool(object):
 
         return mod_count
 
+    def addResults(self, faces):
+        self.added_faces = self.clean(self.added_faces + faces)
+
+
     def getResults(self):
-        return self.clean(self.rolled_faces + self.rerolled_faces)
+        return self.clean(self.rolled_faces + self.rerolled_faces + self.added_faces)
 
 
 

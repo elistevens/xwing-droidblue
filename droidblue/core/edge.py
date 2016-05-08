@@ -1,3 +1,4 @@
+from __future__ import division
 import logging
 log = logging.getLogger(__name__)
 log.setLevel(logging.WARNING)
@@ -7,6 +8,7 @@ log.setLevel(logging.DEBUG)
 __author__ = 'elis'
 
 import copy
+import random
 import re
 
 
@@ -15,6 +17,8 @@ class Edge(object):
     mandatory_bool = False
 
     def __init__(self, active_id, opportunity_list=None):
+        assert isinstance(opportunity_list, (list, type(None))), repr(opportunity_list)
+
         self.active_id = active_id
         self.opportunity_list = opportunity_list
 
@@ -74,6 +78,15 @@ class RandomEdge(Edge):
 
         return score_cls.averageScores(score_list)
 
+    def transitionImpl(self, state):
+        weight_sum = sum(weight for weight, subedge in self.outcome2weightSubedge_dict.values())
+        weight_sum *= random.random()
+
+        for outcome, (weight, subedge) in self.outcome2weightSubedge_dict.iteritems():
+            if weight_sum <= weight:
+                log.info("Randomly chose {!r}".format(outcome))
+                return subedge.transitionImpl(state)
+            weight_sum -= weight
 
 
 class SpendTokenEdge(Edge):
@@ -84,9 +97,9 @@ class SpendTokenEdge(Edge):
         self.token_id = token_id if token_id is not None else active_id
 
     def transitionImpl(self, state):
-        from droidblue.core.steps import Stepper
-        state.ship[self.token_id].removeToken(self.token_str)
-        state.pushStepper(Stepper(['spendToken-{}'.format(self.token_str)], active_id=self.active_id))
+        # from droidblue.core.steps import Stepper
+        state.removeToken(self.token_id, self.token_str)
+        # state.pushStepper(Stepper(['spendToken-{}'.format(self.token_str)], active_id=self.active_id))
 
 
 class SpendFocusTokenEdge(SpendTokenEdge):

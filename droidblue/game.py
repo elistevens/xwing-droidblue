@@ -4,7 +4,7 @@ import simplejson as json
 import sys
 
 from droidblue.core.state import BoardState
-from droidblue.testing.fixtures import vs_state
+from droidblue.testing.fixtures import chase_state
 
 class Game(object):
     def __init__(self, score_cls, squads_list, slop_list):
@@ -14,7 +14,7 @@ class Game(object):
 
 class RandomPlay(object):
     def __init__(self):
-        self.root_state = vs_state()
+        self.root_state = chase_state()
         # self.slop_list = slop_list
         # self.score_cls = score_cls
 
@@ -22,10 +22,13 @@ class RandomPlay(object):
         self.state = self.root_state
         self.state.nextRound()
 
-        for i in range(10):
+        for i in range(50):
             try:
                 self.state.getEdges()
             except IndexError:
+                print "Done, but just fastforwarded:"
+                for ff_edge in self.state.fastforward_list:
+                    print "FF: ", ff_edge
                 break
 
             for ff_edge in self.state.fastforward_list:
