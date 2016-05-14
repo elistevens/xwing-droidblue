@@ -1,6 +1,9 @@
 #'use strict';
 $exp = exports ? this
-console.log('import simplejson as json')
+console.log('try:')
+console.log('    import simplejson as json')
+console.log('except ImportError:')
+console.log('    import json')
 console.log('shipData_dict = json.loads("""')
 console.log(JSON.stringify($exp.basicCardData().ships, null, 4))
 console.log('""")')

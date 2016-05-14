@@ -48,6 +48,7 @@ class SetDialRule(ActiveAbilityRule):
                 else:
                     edge_list.append(SetDialEdge(self.pilot_id, color_int, type_str, speed_int))
 
+        # return edge_list[:5]
         return edge_list
 
 
@@ -112,7 +113,7 @@ class PerformManeuverEdge(Edge):
         elif color_int == SetDialRule.green:
             state.setFlag(self.active_id, 'checkPilotStress:green')
 
-        log.info("{}: {}".format(self.active_id, maneuver_str))
+        # log.info("{}: {}".format(self.active_id, maneuver_str))
         pilot_obj.performManeuver(maneuver_str)
 
 rule_list = [SetDialRule, RevealDialRule, PerformManeuverRule]

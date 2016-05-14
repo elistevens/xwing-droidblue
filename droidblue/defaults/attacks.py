@@ -24,7 +24,7 @@ class AttackRule(ActiveAbilityRule):
                 range_list = pilot_obj.getArcRanges(target_obj)
                 range_int = range_list[self.arc_index]
 
-                log.debug("{} at {}: {}".format(self.pilot_id, target_id,range_list))
+                # log.debug("{} at {}: {}".format(self.pilot_id, target_id,range_list))
 
                 if range_int in {1,2,3}:
                     edge_list.append(AttackPrimaryEdge(self.pilot_id, target_id, range_int))
@@ -68,12 +68,17 @@ class AttackPrimaryEdge(Edge):
     def transitionImpl(self, state):
         state.pushStepper(Stepper(Stepper.steps_attack(), self.active_id, self.active_id, self.target_id))
 
-        log.debug(self.active_id)
-        log.debug(state.active_id)
-        log.debug(state.attack_id)
+        # log.debug(self.active_id)
+        # log.debug(state.active_id)
+        # log.debug(state.attack_id)
+        # log.debug(state.target_id)
 
-        state.attackDice_pool = AttackDicePool(state.getStat(self.active_id, 'atk'))
-        state.defenseDice_pool = DefenseDicePool(state.getStat(self.target_id, 'agi'))
+        # FIXME: this needs to now be in a separate gather dice edge, since attack_id/target_id aren't actually set yet
+        state.attackDice_pool.reset()
+        state.defenseDice_pool.reset()
+
+        state.attackDice_pool.addDice(state.getStat(self.active_id, 'atk'))
+        state.defenseDice_pool.addDice(state.getStat(self.target_id, 'agi'))
 
         if self.range_int == 1:
             state.attackDice_pool.addDice()
@@ -145,7 +150,7 @@ class RollAttackRule(AttackAbilityRule):
         roll_edge = RollAttackEdge(self.pilot_id)
         prob_dict = state.attackDice_pool.rollDice()
 
-        log.info(prob_dict)
+        # log.info(prob_dict)
 
         for faces, prob_frac in prob_dict.iteritems():
             subedge = SetRollAttackEdge(self.pilot_id, faces)
@@ -216,8 +221,8 @@ class CompareResultsEdge(Edge):
         crit_count = 0
         evade_count = 0
 
-        log.info(state.attackDice_pool.getResults())
-        log.info(state.defenseDice_pool.getResults())
+        # log.info(state.attackDice_pool.getResults())
+        # log.info(state.defenseDice_pool.getResults())
 
         for face in state.attackDice_pool.getResults():
             if face == 'C':
@@ -229,7 +234,7 @@ class CompareResultsEdge(Edge):
             if face == 'E':
                 evade_count += 1
 
-        log.info("{}C + {}H vs. {}E".format(crit_count, hit_count, evade_count))
+        # log.info("{}C + {}H vs. {}E".format(crit_count, hit_count, evade_count))
 
         while hit_count and evade_count:
             hit_count -= 1

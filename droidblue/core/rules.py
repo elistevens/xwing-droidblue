@@ -12,7 +12,7 @@ import re
 @functools.total_ordering
 class Rule(object):
     wildcard_key = ('*',)
-    priority = 10
+    priority = 50
     card_type = None
     card_name = None
     isStatRule_bool = False
@@ -27,9 +27,11 @@ class Rule(object):
         assert isinstance(pilot_id, int)
         assert isinstance(upgrade_id, (int, type(None)))
 
-        self.opportunity_key = "{}:{}:{}".format(type(self).__name__, id(self), pilot_id)
         self.pilot_id = pilot_id
         self.upgrade_id = upgrade_id
+        self.opportunity_key = "{}:{}:{}".format(type(self).__name__, id(self), pilot_id)
+        if upgrade_id is not None:
+            self.opportunity_key += "-{}".format(upgrade_id)
 
         for key_tup in key_list:
             assert isinstance(key_tup, tuple)
@@ -46,7 +48,7 @@ class Rule(object):
         return r.replace('>', ' {}>'.format(extra_str))
 
     def _sortKey(self):
-        return (self.priority, self.pilot_id, str(type(self)))
+        return (self.priority, self.pilot_id, self.opportunity_key)
 
     def __lt__(self, other):
         try:
@@ -55,7 +57,7 @@ class Rule(object):
             return True
 
     def __eq__(self, other):
-        return id(self) == id(other)
+        return self.__dict__ == other.__dict__
 
     # @property
     # def opportunity_list(self):
@@ -110,8 +112,8 @@ class Rule(object):
         for edge in edge_list:
             if self.filterEdge(edge, state):
                 filtered_list.append(edge)
-            else:
-                log.debug("{} filtering {}".format(str(type(self)), edge))
+            # else:
+            #     log.debug("{} filtering {}".format(str(type(self)), edge))
         return filtered_list
 
     def filterEdge(self, edge, state):

@@ -8,11 +8,13 @@ log.setLevel(logging.DEBUG)
 __author__ = 'elis'
 
 import copy
+import cPickle
 import random
 import re
 
 
 class Edge(object):
+    priority = 50
     usesSlop_bool = False
     mandatory_bool = False
 
@@ -22,11 +24,27 @@ class Edge(object):
         self.active_id = active_id
         self.opportunity_list = opportunity_list
 
+        self.sorting_key = "{}:{}:{}".format(type(self).__name__, id(self), active_id)
+
+
     def __repr__(self):
         extra_str = ', '.join(['{}:{!r}'.format(k, v) for k, v in sorted(self.__dict__.iteritems())])
         r = super(Edge, self).__repr__()
         r = re.sub(r'\<droidblue\.([a-z]+\.)+', '<', r)
         return r.replace('>', ' {}>'.format(extra_str))
+
+    def _sortKey(self):
+        return (self.priority, self.active_id, self.sorting_key)
+
+    def __lt__(self, other):
+        try:
+            return self._sortKey() < other._sortKey()
+        except:
+            return True
+
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
 
     def computeLookaheadScore(self, score_cls, parent, slop, depth):
         state = copy.deepcopy(parent)
@@ -35,9 +53,17 @@ class Edge(object):
 
         return score_cls(state, slop, depth)
 
-    def getExactState(self, parent, doCopy=True):
+    def getExactState(self, parent, doCopy=True, count=1):
         if doCopy:
-            state = copy.deepcopy(parent)
+            # state = copy.deepcopy(parent)
+            # state = cPickle.loads(cPickle.dumps(parent, protocol=cPickle.HIGHEST_PROTOCOL))
+            if count >= 3:
+                if parent.pickle_str is None:
+                    parent.pickle_str = cPickle.dumps(parent, protocol=cPickle.HIGHEST_PROTOCOL)
+                state = cPickle.loads(parent.pickle_str)
+            else:
+                state = copy.deepcopy(parent)
+
             state.fastforward_list = []
         else:
             state = parent
@@ -51,11 +77,13 @@ class Edge(object):
         raise NotImplementedError()
 
 class ChoosePassEdge(Edge):
+    priority = 90
     def transitionImpl(self, state):
         return state
 
 
 class RandomEdge(Edge):
+    priority = 30
     def __init__(self, active_id):
         super(RandomEdge, self).__init__(active_id)
         self.outcome2weightSubedge_dict = {}
@@ -84,12 +112,13 @@ class RandomEdge(Edge):
 
         for outcome, (weight, subedge) in self.outcome2weightSubedge_dict.iteritems():
             if weight_sum <= weight:
-                log.info("Randomly chose {!r}".format(outcome))
+                # log.info("Randomly chose {!r}".format(outcome))
                 return subedge.transitionImpl(state)
             weight_sum -= weight
 
 
 class SpendTokenEdge(Edge):
+    priority = 70
     token_str = None
 
     def __init__(self, active_id, token_id=None):

@@ -19,7 +19,7 @@ import numpy as np
 from droidblue.core.edge import ChoosePassEdge
 from droidblue.core.steps import Stepper
 from droidblue.core.rules import Rule
-
+from droidblue.core.dice import StateBackedAttackDicePool, StateBackedDefenseDicePool
 
 class StateBase(object):
     stat_list = []
@@ -79,7 +79,7 @@ class StateBase(object):
         edge_list = []
         for rule in rule_list:
             edge_list.extend(rule.getEdges(self))
-            log.debug("{}: {}".format(rule, edge_list))
+            # log.debug("{}: {}".format(rule, edge_list))
 
         # Has to be a separate loop from the above so that filtering can see
         # the full edge set, not just the incremental results.
@@ -190,7 +190,24 @@ class BoardState(StateBase):
     ]
     targetLock_set = set(targetLock_list)
 
-    stat_list = token_list + flag_list + targetLock_list
+    dice_list = [
+        'dice_count',
+        'rolled_C',
+        'rolled_E',
+        'rolled_H',
+        'rolled_f',
+        'rolled_x',
+
+        'rerolled_C',
+        'rerolled_E',
+        'rerolled_H',
+        'rerolled_f',
+        'rerolled_x',
+    ]
+    dice_set = set(dice_list)
+
+
+    stat_list = token_list + flag_list + targetLock_list + dice_list
     stat_set = set(stat_list)
     statIndex_dict = {k: i for i, k in enumerate(stat_list)}
 
@@ -215,22 +232,27 @@ class BoardState(StateBase):
         self.const_id = const_id
         super(BoardState, self).__init__(self.const.pilot_count)
 
+        self.pickle_str = None
+
 
         self.fastforward_list = []
         self.edge_list = None
         self.usedOpportunity_set = set()
+        self.playerWithInit_id = 999 # Inf, essentially
 
-        self.attackDice_pool = None
-        self.defenseDice_pool = None
+        # self.attackDice_pool = None
+        # self.defenseDice_pool = None
 
         self.upgrade_array = np.zeros((self.const.upgrade_count, 2), np.int8)
-        self.position_array = np.zeros((self.const.pilot_count, 3), np.float32)
-        self.pilots = []
+        self.position_array = np.zeros((self.const.pilot_count, 5), np.float32)
+        self.maneuver_list = [None] * self.const.pilot_count
+        # self.pilots = []
 
         hull_max = 1
         for pilot_id in range(self.const.pilot_count):
             hull_max = max(hull_max, self.getStat(pilot_id, 'hull_max'))
-            self.pilots.append(Pilot(self, pilot_id))
+            self._setRawStat(pilot_id, 'shield', self.getStat(pilot_id, 'shield_max'))
+            # self.pilots.append(Pilot(self, pilot_id))
 
         self.damage_array = np.zeros((self.const.pilot_count, hull_max), np.int8)
 
@@ -300,7 +322,7 @@ class BoardState(StateBase):
             return int(hull_int + self._getStat(pilot_id, 'shield'))
 
         if stat_key == 'damage':
-            return len(self.pilots[pilot_id].damage_list)
+            return int(np.sum(self.damage_array[pilot_id] != 0) + np.sum(self.damage_array[pilot_id] == 2))
 
         return 0
 
@@ -336,15 +358,15 @@ class BoardState(StateBase):
             edge_list = self._getEdges(key_list)
 
             # Restrict to player with the best init
-            playerWithInit_id = 999 # Inf, essentially
+            self.playerWithInit_id = 999 # Inf, essentially
             self.edge_list = []
             for edge in edge_list:
                 player_id = self.getStat(edge.active_id, 'player_id')
 
-                if player_id < playerWithInit_id:
+                if player_id < self.playerWithInit_id:
                     self.edge_list = [edge]
-                    playerWithInit_id = player_id
-                elif player_id == playerWithInit_id:
+                    self.playerWithInit_id = player_id
+                elif player_id == self.playerWithInit_id:
                     self.edge_list.append(edge)
 
             # Provide option to pass
@@ -362,7 +384,7 @@ class BoardState(StateBase):
                 elif len(self.edge_list) == 1:
                     only_edge = self.edge_list.pop()
                     self.fastforward_list.append(only_edge)
-                    log.info("Fastforward {}: {}".format(fastforward_bool, only_edge))
+                    # log.info("Fastforward {}: {}".format(fastforward_bool, only_edge))
                     only_edge.getExactState(self, doCopy=False)
                     self.nextStep()
 
@@ -371,6 +393,7 @@ class BoardState(StateBase):
             else:
                 break
 
+        self.edge_list.sort()
         return self.edge_list
 
 
@@ -490,12 +513,12 @@ class BoardState(StateBase):
 
     @property
     def stepper(self):
-        try:
-            return self._stepper_stack[self._stepper_index][0]
-        except:
-            log.warn(self._stepper_index)
-            log.warn(self._stepper_stack)
-            raise
+        # try:
+        return self._stepper_stack[self._stepper_index][0]
+        # except:
+        #     log.warn(self._stepper_index)
+        #     log.warn(self._stepper_stack)
+        #     raise
 
     @property
     def step(self):
@@ -514,6 +537,10 @@ class BoardState(StateBase):
         self.stepper.active_id = value
 
     @property
+    def active_pilot(self):
+        return Pilot(self, self.active_id)
+
+    @property
     def attack_id(self):
         return self.stepper.attack_id
     @attack_id.setter
@@ -522,12 +549,32 @@ class BoardState(StateBase):
         self.stepper.attack_id = value
 
     @property
+    def attack_pilot(self):
+        return Pilot(self, self.attack_id)
+
+    @property
     def target_id(self):
         return self.stepper.target_id
     @target_id.setter
     def target_id(self, value):
         assert self.stepper.target_id == None
         self.stepper.target_id = value
+
+    @property
+    def target_pilot(self):
+        return Pilot(self, self.target_id)
+
+    @property
+    def pilots(self):
+        return [Pilot(self, pilot_id) for pilot_id in range(self.const.pilot_count)]
+
+    @property
+    def attackDice_pool(self):
+        return StateBackedAttackDicePool(self, self.attack_id)
+
+    @property
+    def defenseDice_pool(self):
+        return StateBackedDefenseDicePool(self, self.target_id)
 
 
     def useOpportunity(self, opportunity_list):

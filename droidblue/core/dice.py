@@ -37,13 +37,12 @@ class DicePool(object):
     def clean(cls, faces):
         return ''.join(sorted(faces))
 
-    def __init__(self, count=0, rolled_faces='', rerolled_faces='', added_faces=''):
+    def __init__(self, count=0, rolled_faces='', rerolled_faces=''):
         self.count = count
-        self.total = None
+        # self.total = None
 
         self.rolled_faces = rolled_faces
         self.rerolled_faces = rerolled_faces
-        self.added_faces = added_faces
 
     def rollDice(self):
         return self._rollDice(self.count)
@@ -55,7 +54,7 @@ class DicePool(object):
     def setRoll(self, rolled_faces):
         self.count = 0
         self.rolled_faces = rolled_faces
-        self.total = len(rolled_faces)
+        # self.total = len(rolled_faces)
 
     # Rerolls
     def getRerollOptions(self, allowed_faces, count):
@@ -100,11 +99,11 @@ class DicePool(object):
         return mod_count
 
     def addResults(self, faces):
-        self.added_faces = self.clean(self.added_faces + faces)
+        self.rerolled_faces = self.clean(self.rerolled_faces + faces)
 
 
     def getResults(self):
-        return self.clean(self.rolled_faces + self.rerolled_faces + self.added_faces)
+        return self.clean(self.rolled_faces + self.rerolled_faces)
 
 
 
@@ -116,7 +115,71 @@ class DefenseDicePool(DicePool):
     faces = 'EEEffxxx'
     cache = {}
 
+class StateBackedDicePool(DicePool):
+    def __init__(self, state, pilot_id):
+        # We don't call super init here, because these objects are transient.
+        # It's important that super init only does things equivalent to zeroing out
+        self.state = state
+        self.pilot_id = pilot_id
+
+    def reset(self):
+        self.state._setRawStat(self.pilot_id, 'dice_count', 0)
+        for face in sorted(set(self.faces)):
+            self.state._setRawStat(self.pilot_id, 'rolled_' + face, 0)
+            self.state._setRawStat(self.pilot_id, 'rerolled_' + face, 0)
+
+    @property
+    def count(self):
+        return self.state._getRawStat(self.pilot_id, 'dice_count')
+    @count.setter
+    def count(self, value):
+        self.state._setRawStat(self.pilot_id, 'dice_count', value)
+
+    @property
+    def rolled_faces(self):
+        face_str = ''
+        for face in sorted(set(self.faces)):
+            face_str += face * self.state._getRawStat(self.pilot_id, 'rolled_' + face)
+
+        return face_str
+
+    @rolled_faces.setter
+    def rolled_faces(self, value):
+        face_dict = {}
+        for face in sorted(set(self.faces)):
+            face_dict[face] = 0
+            self.state._setRawStat(self.pilot_id, 'rolled_' + face, 0)
+
+        for face in value:
+            face_dict[face] += 1
+            self.state._setRawStat(self.pilot_id, 'rolled_' + face, face_dict[face])
+
+    @property
+    def rerolled_faces(self):
+        face_str = ''
+        for face in sorted(set(self.faces)):
+            face_str += face * self.state._getRawStat(self.pilot_id, 'rerolled_' + face)
+
+        return face_str
+
+    @rerolled_faces.setter
+    def rerolled_faces(self, value):
+        face_dict = {}
+        for face in sorted(set(self.faces)):
+            face_dict[face] = 0
+            self.state._setRawStat(self.pilot_id, 'rerolled_' + face, 0)
+
+        for face in value:
+            face_dict[face] += 1
+            self.state._setRawStat(self.pilot_id, 'rerolled_' + face, face_dict[face])
 
 
+class StateBackedAttackDicePool(StateBackedDicePool):
+    faces = 'CHHHffxx'
+    cache = {}
+
+class StateBackedDefenseDicePool(StateBackedDicePool):
+    faces = 'EEEffxxx'
+    cache = {}
 
 

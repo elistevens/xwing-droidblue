@@ -1,4 +1,13 @@
 from __future__ import division
+import logging
+log = logging.getLogger(__name__)
+log.setLevel(logging.WARNING)
+log.setLevel(logging.INFO)
+log.setLevel(logging.DEBUG)
+
+__author__ = 'elis'
+
+import re
 
 class Score(object):
     @classmethod
@@ -15,62 +24,78 @@ class Score(object):
 
         return cls(None, owner_id, _individual_list=individual_list)
 
-    def __init__(self, state, owner_id, _individual_list=None):
-        self.owner_id = owner_id
+
+    def __init__(self, state, _individual_list=None, _lossFor=None):
+        self._lossFor = _lossFor
 
         if state:
-            self.individual_list = [self.computeIndividualScore(state, player_id) for player_id in range(state.player_count)]
+            self.individual_list = [self.computeIndividualScore(state, player_id) for player_id in range(state.const.player_count)]
         else:
             assert _individual_list
-            self.individual_list = _individual_list
+            self.individual_list = list(_individual_list)
 
-        self.composite_num = self.computeCompositeScore()
+        # self.composite_num = self.computeCompositeScore(state.playerWithInit_id)
+
+    def __repr__(self):
+        extra_str = "{}, margin {}".format(self.individual_list, [self.marginFor(p) for p in range(len(self.individual_list))])
+
+        r = super(Score, self).__repr__()
+        r = re.sub(r'\<droidblue\.([a-z]+\.)+', '<', r)
+        return r.replace('>', ' {}>'.format(extra_str))
+
 
     def computeIndividualScore(self, state, player_id):
         raise NotImplementedError()
 
-    def computeCompositeScore(self):
-        otherScore_list = [s for (i, s) in enumerate(self.individual_list) if i != self.owner_id]
+    def marginFor(self, player_id):
+        # log.debug(player_id)
+        if self._lossFor is not None:
+            if self._lossFor == player_id:
+                return -9999
+            else:
+                return 9999
+
+        otherScore_list = [s for (i, s) in enumerate(self.individual_list) if i != player_id]
         other_score = max(otherScore_list)
-        this_score = self.individual_list[self.owner_id]
+        this_score = self.individual_list[player_id]
         return this_score - other_score
 
 
 class MovDeltaScore(Score):
     def computeIndividualScore(self, state, player_id):
         pointsLost_int = 0
-        hasUndestroyedShips_bool = False
-        for pilot_id, ship in enumerate(state.ships):
-            if ship.owner_id == player_id:
-                if state._getStat('isDestroyed', pilot_id):
-                    pointsLost_int += ship.points
-                elif ship.givesHalfMov():
-                    pointsLost_int += int(ship.points / 2)
-                    hasUndestroyedShips_bool = True
+        hasUndestroyedPilots_bool = False
+        for pilot_id, pilot in enumerate(state.pilots):
+            if state.getStat(pilot_id, 'player_id') == player_id:
+                if state.getStat(pilot_id, 'isDestroyed'):
+                    pointsLost_int += state.getStat(pilot_id, 'points')
+                elif state.getStat(pilot_id, 'grantsHalfMov'):
+                    pointsLost_int += int(state.getStat(pilot_id, 'points') / 2)
+                    hasUndestroyedPilots_bool = True
                 else:
-                    hasUndestroyedShips_bool = True
+                    hasUndestroyedPilots_bool = True
 
-        return 100 - pointsLost_int if hasUndestroyedShips_bool else 0
+        return (100 - pointsLost_int) if hasUndestroyedPilots_bool else 0
 
 class MovAndHpDeltaScore(MovDeltaScore):
     def computeIndividualScore(self, state, player_id):
-        mov_score = super(TournamentMovAndHpDeltaScore, self).computeIndividualScore(state, player_id)
+        mov_score = super(MovAndHpDeltaScore, self).computeIndividualScore(state, player_id)
 
         pointsLost_int = 0
-        hasUndestroyedShips_bool = False
-        for pilot_id, ship in enumerate(state.ships):
-            if ship.owner_id == player_id:
-                if state._getStat('isDestroyed', pilot_id):
-                    pointsLost_int += ship.points
+        hasUndestroyedPilots_bool = False
+        for pilot_id, pilot in enumerate(state.pilots):
+            if state.getStat(pilot_id, 'player_id') == player_id:
+                if state.getStat(pilot_id, 'isDestroyed'):
+                    pointsLost_int += state.getStat(pilot_id, 'points')
                 else:
-                    pointsLost_int += int(ship.points * (state._getStat('totalHp', pilot_id) / state._getStat('currentHp', pilot_id)))
-                    hasUndestroyedShips_bool = True
+                    pointsLost_int += int(state.getStat(pilot_id, 'points') * (state.getStat(pilot_id, 'currentHp') / state.getStat(pilot_id, 'totalHp')))
+                    hasUndestroyedPilots_bool = True
 
-        return mov_score + 100 - pointsLost_int if hasUndestroyedShips_bool else 0
+        return mov_score + (100 - pointsLost_int) if hasUndestroyedPilots_bool else 0
 
 class TournamentMovDeltaScore(MovDeltaScore):
-    def computeCompositeScore(self):
-        delta_score = super(MovDeltaScore, self).computeCompositeScore()
+    def marginFor(self, player_id):
+        delta_score = super(TournamentMovDeltaScore, self).marginFor(player_id)
 
         tournament_score = 0
         if delta_score > 12:

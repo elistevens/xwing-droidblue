@@ -66,8 +66,8 @@ TODO
 
 - [ ] overlap detection
 - [ ] patrial maneuvers for bumps
-- [ ] arc logic
-- [ ] rules and edges for combat
+- [x] arc logic
+- [x] rules and edges for combat
 - [x] dice pools, rerolls, modifications, etc.
 - [ ] niche actions (cloak, slam, etc.)
 - [ ] target locks

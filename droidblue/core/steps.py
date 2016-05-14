@@ -26,7 +26,7 @@ class Stepper(object):
         if isinstance(self.step_tup, str):
             self.step_tup = (self.step_tup,)
 
-        log.debug("{}: {}, {}, {}".format(self.step_tup, self.active_id, self.attack_id, self.target_id))
+        # log.debug("{}: {}, {}, {}".format(self.step_tup, self.active_id, self.attack_id, self.target_id))
 
         return self.step_tup
 

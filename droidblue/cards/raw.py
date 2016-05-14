@@ -1,4 +1,7 @@
-import simplejson as json
+try:
+    import simplejson as json
+except ImportError:
+    import json
 shipData_dict = json.loads("""
 {
     "X-Wing": {

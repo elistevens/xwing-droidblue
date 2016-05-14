@@ -61,6 +61,7 @@ class PerformFocusActionRule(PerformActionRule):
 
 
 class PerformFocusActionEdge(PerformActionEdge):
+    priority = 30
     def transitionImpl(self, state):
         state.assignToken(self.active_id, 'focus')
         super(PerformFocusActionEdge, self).transitionImpl(state)
@@ -74,6 +75,7 @@ class PerformEvadeActionRule(PerformActionRule):
 
 
 class PerformEvadeActionEdge(PerformActionEdge):
+    priority = 40
     def transitionImpl(self, state):
         state.assignToken(self.active_id, 'evade')
         super(PerformEvadeActionEdge, self).transitionImpl(state)
@@ -112,6 +114,7 @@ class PerformBarrelRollActionRule(PerformActionRule):
         return edge_list
 
 class PerformBarrelRollActionEdge(PerformActionEdge):
+    priority = 70
     def __init__(self, active_id, mx, my):
         super(PerformBarrelRollActionEdge, self).__init__(active_id)
 
@@ -135,6 +138,7 @@ class PerformBoostActionRule(PerformActionRule):
         return edge_list
 
 class PerformBoostActionEdge(PerformActionEdge):
+    priority = 60
     def __init__(self, active_id, maneuver_str):
         super(PerformBoostActionEdge, self).__init__(active_id)
 
@@ -182,6 +186,7 @@ class PerformDecloakActionEdge(PerformActionEdge):
         super(PerformDecloakActionEdge, self).transitionImpl(state)
 
 class PerformSlamActionRule(PerformActionRule):
+    # priority = 80
     card_type = 'generic'
 
 rule_list = [StressPreventsPerformActionRule]

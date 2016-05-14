@@ -14,11 +14,6 @@ class Pilot(Base):
     def __init__(self, state, pilot_id):
         self.state = state
         self.pilot_id = pilot_id
-        self.maneuver_tup = None
-
-        state._setRawStat(pilot_id, 'shield', state.getStat(pilot_id, 'shield_max'))
-
-        super(Pilot, self).__init__()
 
 
     @property
@@ -37,19 +32,39 @@ class Pilot(Base):
         self.state.position_array[self.pilot_id, 0] = value
 
     @property
-    def y(self):
+    def dx(self):
         return float(self.state.position_array[self.pilot_id, 1])
-    @y.setter
-    def y(self, value):
+    @dx.setter
+    def dx(self, value):
         self.state.position_array[self.pilot_id, 1] = value
 
     @property
-    def heading_radians(self):
+    def y(self):
         return float(self.state.position_array[self.pilot_id, 2])
-    @heading_radians.setter
-    def heading_radians(self, value):
+    @y.setter
+    def y(self, value):
         self.state.position_array[self.pilot_id, 2] = value
 
+    @property
+    def dy(self):
+        return float(self.state.position_array[self.pilot_id, 3])
+    @dy.setter
+    def dy(self, value):
+        self.state.position_array[self.pilot_id, 3] = value
+
+    @property
+    def heading_radians(self):
+        return float(self.state.position_array[self.pilot_id, 4])
+    @heading_radians.setter
+    def heading_radians(self, value):
+        self.state.position_array[self.pilot_id, 4] = value
+
+    @property
+    def maneuver_tup(self):
+        return self.state.maneuver_list[self.pilot_id]
+    @maneuver_tup.setter
+    def maneuver_tup(self, value):
+        self.state.maneuver_list[self.pilot_id] = value
 
     @classmethod
     def initRules(cls, const, pilot_id, upgrade_offset, faction_str, pilot_json):

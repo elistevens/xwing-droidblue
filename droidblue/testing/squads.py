@@ -1,5 +1,9 @@
 import copy
-import simplejson as json
+
+try:
+    import simplejson as json
+except ImportError:
+    import json
 
 def swap(squad, pilot=None, noUpgrades=False, points=None):
     squad = copy.deepcopy(squad)
