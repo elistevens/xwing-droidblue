@@ -7,12 +7,12 @@ def test_setFlag(single_state):
     before_sum = single_state.stat_array.sum()
     print single_state.stat_array
 
-    single_state.setFlag(0, 'chosen_dials')
+    single_state.setFlag(0, 'weaponsDisabled')
 
     after_sum = single_state.stat_array.sum()
     print single_state.stat_array
 
-    assert single_state.getFlag(0, 'chosen_dials')
+    assert single_state.getFlag(0, 'weaponsDisabled')
 
     assert after_sum == before_sum + 1
 
