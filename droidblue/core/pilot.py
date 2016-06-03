@@ -6,6 +6,8 @@ log.setLevel(logging.INFO)
 
 import math
 
+import numpy as np
+
 from droidblue.core.base import Base
 from droidblue.util import importstr
 
@@ -29,6 +31,7 @@ class Pilot(Base):
         return float(self.state.position_array[self.pilot_id, 0])
     @x.setter
     def x(self, value):
+        self.state.position_array = np.copy(self.state.position_array)
         self.state.position_array[self.pilot_id, 0] = value
 
     @property
@@ -36,6 +39,7 @@ class Pilot(Base):
         return float(self.state.position_array[self.pilot_id, 1])
     @dx.setter
     def dx(self, value):
+        self.state.position_array = np.copy(self.state.position_array)
         self.state.position_array[self.pilot_id, 1] = value
 
     @property
@@ -43,6 +47,7 @@ class Pilot(Base):
         return float(self.state.position_array[self.pilot_id, 2])
     @y.setter
     def y(self, value):
+        self.state.position_array = np.copy(self.state.position_array)
         self.state.position_array[self.pilot_id, 2] = value
 
     @property
@@ -50,6 +55,7 @@ class Pilot(Base):
         return float(self.state.position_array[self.pilot_id, 3])
     @dy.setter
     def dy(self, value):
+        self.state.position_array = np.copy(self.state.position_array)
         self.state.position_array[self.pilot_id, 3] = value
 
     @property
@@ -57,6 +63,7 @@ class Pilot(Base):
         return float(self.state.position_array[self.pilot_id, 4])
     @heading_radians.setter
     def heading_radians(self, value):
+        self.state.position_array = np.copy(self.state.position_array)
         self.state.position_array[self.pilot_id, 4] = value
 
     @property
@@ -111,6 +118,10 @@ class Pilot(Base):
         # the cards for discard, etc.
         upgrade_count = 0
         for slot_str, upgrade_list in pilot_json.get('upgrades', {}).iteritems():
+            # We need one "upgrade" to represent the pilot card, for things
+            # like "no more pilot ability" crits and once-per-game effects.
+            upgrade_count += 1
+
             for upgrade_str in upgrade_list:
                 module_str = 'droidblue.upgrade.{}.{}'.format(slot_str, upgrade_str)
 
@@ -124,14 +135,13 @@ class Pilot(Base):
                     rule_cls(const, pilot_id, upgrade_offset + upgrade_count)
                 upgrade_count += 1
 
-        # This has to come late, since upgrades might change the value of
-        # shield_max
         const._setRawStat(pilot_id, 'points', pilot_json['points'])
         const._setRawStat(pilot_id, 'upgrade_count', upgrade_count)
 
         return upgrade_count
 
     def toJson(self, state):
+        state = self.state
         stat_list = state.stat_list + state.const.stat_list
 
         j = {'ship': state.const.ship_list[self.pilot_id], 'pilot': state.const.pilot_list[self.pilot_id]}
@@ -148,3 +158,17 @@ class Pilot(Base):
         }
 
         return j
+
+    def toNeuralNetInput(self):
+        state = self.state
+        pilot_id = self.pilot_id
+        stat_list = self.state.const.stat_list + self.state.token_list + self.state.flag_list + self.state.targetLock_list
+
+        value_list = []
+        for stat_str in stat_list:
+            if stat_str != 'ps':
+                value_list.append(state.getStat(pilot_id, stat_str))
+
+        value_list.append(self.x)
+        value_list.append(self.y)
+        value_list.append(self.heading_degrees)

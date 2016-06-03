@@ -1,7 +1,12 @@
 
 import random
-import simplejson as json
 import sys
+
+try:
+    import simplejson as json
+except ImportError:
+    import json
+
 
 from droidblue.core.state import BoardState
 from droidblue.testing.fixtures import chase_state
@@ -27,17 +32,21 @@ class RandomPlay(object):
                 self.state.getEdges()
             except IndexError:
                 print "Done, but just fastforwarded:"
+                break
+            finally:
                 for ff_edge in self.state.fastforward_list:
-                    print "FF: ", ff_edge
+                    print "    FF: ", ff_edge
+
+            if not self.state.edge_list:
                 break
 
-            for ff_edge in self.state.fastforward_list:
-                print "FF: ", ff_edge
+            # for ff_edge in self.state.fastforward_list:
+            #     print "FF: ", ff_edge
 
             # print self.state.edge_list
 
             random_edge = random.choice(self.state.edge_list)
-            print "Rnd:", random_edge, len(self.state.edge_list)
+            print "    Rnd:", random_edge, len(self.state.edge_list)
 
             self.state = random_edge.getExactState(self.state)
 

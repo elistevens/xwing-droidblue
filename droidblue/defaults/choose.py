@@ -6,8 +6,8 @@ log.setLevel(logging.INFO)
 # log.setLevel(logging.DEBUG)
 
 from droidblue.core.edge import Edge
-from droidblue.core.rules import Rule
-from droidblue.core.steps import Stepper
+from droidblue.core.rules import Rule, default_ruleKey
+from droidblue.core.steps import steps_dials, steps_activation, steps_combat
 
 class ChooseActivePilotEdge(Edge):
     mandatory_bool = True
@@ -17,20 +17,19 @@ class ChooseActivePilotEdge(Edge):
         super(ChooseActivePilotEdge, self).__init__(active_id)
         self.order_tup = order_tup
 
-    def transitionImpl(self, state):
-        state.pushStepper(Stepper(self.stepper_func(), self.active_id))
-
-
 class DialsChooseActivePilotEdge(ChooseActivePilotEdge):
-    stepper_func = Stepper.steps_dial
+    def transitionImpl(self, state):
+        state.pushSteps(steps_dials(), self.active_id)
 
 
 class ActivationChooseActivePilotEdge(ChooseActivePilotEdge):
-    stepper_func = Stepper.steps_activation
+    def transitionImpl(self, state):
+        state.pushSteps(steps_activation(), self.active_id)
 
 
 class CombatChooseActivePilotEdge(ChooseActivePilotEdge):
-    stepper_func = Stepper.steps_combat
+    def transitionImpl(self, state):
+        state.pushSteps(steps_combat(), self.active_id)
 
 
 class ChooseActivePilotRule(Rule):
@@ -43,7 +42,7 @@ class ChooseActivePilotRule(Rule):
         log.debug(pilot_id)
         self.player_id = state._getRawStat(pilot_id, 'player_id')
 
-        super(ChooseActivePilotRule, self).__init__(state, [(self.step_str,)], pilot_id)
+        super(ChooseActivePilotRule, self).__init__(state, [default_ruleKey._replace(step=self.step_str)], pilot_id)
 
     # # FIXME: I should be able to get rid of the chosen_XXX flags due to the
     # # opportunity handling code, but it breaks. Need to figure that out.
@@ -65,7 +64,7 @@ class ChooseActivePilotRule(Rule):
 
 
 class DialsChooseActivePilotRule(ChooseActivePilotRule):
-    step_str = 'dials'
+    step_str = 'doChooseDials'
     edge_cls = DialsChooseActivePilotEdge
 
     def orderTuple(self, state):
@@ -73,7 +72,7 @@ class DialsChooseActivePilotRule(ChooseActivePilotRule):
 
 
 class ActivationChooseActivePilotRule(ChooseActivePilotRule):
-    step_str = 'activation'
+    step_str = 'doChooseActivation'
     edge_cls = ActivationChooseActivePilotEdge
 
     def orderTuple(self, state):
@@ -81,7 +80,7 @@ class ActivationChooseActivePilotRule(ChooseActivePilotRule):
 
 
 class CombatChooseActivePilotRule(ChooseActivePilotRule):
-    step_str = 'combat'
+    step_str = 'doChooseCombat'
     edge_cls = CombatChooseActivePilotEdge
 
     def orderTuple(self, state):

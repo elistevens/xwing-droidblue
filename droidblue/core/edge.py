@@ -55,22 +55,19 @@ class Edge(object):
 
     def getExactState(self, parent, doCopy=True, count=1):
         if doCopy:
-            # state = copy.deepcopy(parent)
-            # state = cPickle.loads(cPickle.dumps(parent, protocol=cPickle.HIGHEST_PROTOCOL))
-            if count >= 3:
-                if parent.pickle_str is None:
-                    parent.pickle_str = cPickle.dumps(parent, protocol=cPickle.HIGHEST_PROTOCOL)
-                state = cPickle.loads(parent.pickle_str)
-            else:
-                state = copy.deepcopy(parent)
-
-            state.fastforward_list = []
+            # parent_copy = copy.deepcopy(parent)
+            state = parent.clone()
         else:
+            # parent_copy = None
             state = parent
 
         state.useOpportunity(self.opportunity_list)
         # state.slop = None
         self.transitionImpl(state)
+
+        # if doCopy:
+        #     assert parent_copy == parent
+
         return state
 
     def transitionImpl(self, state):
@@ -83,7 +80,9 @@ class ChoosePassEdge(Edge):
 
 
 class RandomEdge(Edge):
+    mandatory_bool = True
     priority = 30
+
     def __init__(self, active_id):
         super(RandomEdge, self).__init__(active_id)
         self.outcome2weightSubedge_dict = {}
@@ -94,17 +93,6 @@ class RandomEdge(Edge):
         else:
             self.outcome2weightSubedge_dict[outcome] = (weight + self.outcome2weightSubedge_dict[outcome][0], subedge)
 
-    def computeScore(self, score_cls, parent, slop, depth):
-        # avgScore_list = None
-        score_list = []
-        for weight, subedge in self.outcome2weightSubedge_dict.values():
-            state = copy.deepcopy(parent)
-            state.slop = slop
-            state = self.transitionImpl(state)
-
-            score_list.append((score_cls(state, slop, depth), weight))
-
-        return score_cls.averageScores(score_list)
 
     def transitionImpl(self, state):
         weight_sum = sum(weight for weight, subedge in self.outcome2weightSubedge_dict.values())
@@ -113,6 +101,7 @@ class RandomEdge(Edge):
         for outcome, (weight, subedge) in self.outcome2weightSubedge_dict.iteritems():
             if weight_sum <= weight:
                 # log.info("Randomly chose {!r}".format(outcome))
+                subedge.opportunity_list = self.opportunity_list
                 return subedge.transitionImpl(state)
             weight_sum -= weight
 

@@ -4,11 +4,11 @@ log.setLevel(logging.WARNING)
 log.setLevel(logging.INFO)
 log.setLevel(logging.DEBUG)
 
-from droidblue.core.rules import ActiveAbilityRule, AttackAbilityRule, TargetAbilityRule
+from droidblue.core.rules import ActiveAbilityRule, ActiveAbilityRule, TargetAbilityRule
 from droidblue.core.pilot import Pilot
 from droidblue.core.edge import Edge, RandomEdge, SpendFocusTokenEdge, SpendEvadeTokenEdge
-from droidblue.core.steps import Stepper
-from droidblue.core.dice import AttackDicePool, DefenseDicePool
+from droidblue.core.steps import steps_attack
+from droidblue.core.dice import StateBackedAttackDicePool, StateBackedDefenseDicePool
 
 class AttackRule(ActiveAbilityRule):
     def __init__(self, state, pilot_id):
@@ -66,29 +66,29 @@ class AttackPrimaryEdge(Edge):
         self.range_int = range_int
 
     def transitionImpl(self, state):
-        state.pushStepper(Stepper(Stepper.steps_attack(), self.active_id, self.active_id, self.target_id))
+        state.pushSteps(steps_attack(), self.active_id, self.target_id)
 
-        # log.debug(self.active_id)
-        # log.debug(state.active_id)
-        # log.debug(state.attack_id)
-        # log.debug(state.target_id)
+        # We can't use state.attackDice_pool yet, since we're still on the old
+        # step, so state.active_id, etc. aren't correct yet. That will change
+        # once state.nextStep gets called.
+        attackDice_pool = StateBackedAttackDicePool(state, self.active_id)
+        defenseDice_pool = StateBackedDefenseDicePool(state, self.target_id)
 
-        # FIXME: this needs to now be in a separate gather dice edge, since attack_id/target_id aren't actually set yet
-        state.attackDice_pool.reset()
-        state.defenseDice_pool.reset()
+        attackDice_pool.reset()
+        defenseDice_pool.reset()
 
-        state.attackDice_pool.addDice(state.getStat(self.active_id, 'atk'))
-        state.defenseDice_pool.addDice(state.getStat(self.target_id, 'agi'))
+        attackDice_pool.addDice(state.getStat(self.active_id, 'atk'))
+        defenseDice_pool.addDice(state.getStat(self.target_id, 'agi'))
 
         if self.range_int == 1:
-            state.attackDice_pool.addDice()
+            attackDice_pool.addDice()
 
         if self.range_int == 3:
-            state.defenseDice_pool.addDice()
+            defenseDice_pool.addDice()
 
 
 # Spend focus
-class SpendFocusTokenToModifyAttackDiceRule(AttackAbilityRule):
+class SpendFocusTokenToModifyAttackDiceRule(ActiveAbilityRule):
     card_type = 'generic'
 
     def __init__(self, state, pilot_id):
@@ -140,14 +140,15 @@ class SpendEvadeTokenToAddEvadeResultEdge(SpendEvadeTokenEdge):
 # Acquire Target Lock
 
 # Roll Dice
-class RollAttackRule(AttackAbilityRule):
+class RollAttackRule(ActiveAbilityRule):
     card_type = 'generic'
 
     def __init__(self, state, pilot_id):
-        super(RollAttackRule, self).__init__(state, 'rollAttack', pilot_id)
+        super(RollAttackRule, self).__init__(state, 'doRollAttack', pilot_id)
 
     def _getEdges(self, state):
         roll_edge = RollAttackEdge(self.pilot_id)
+        # log.debug(state._step)
         prob_dict = state.attackDice_pool.rollDice()
 
         # log.info(prob_dict)
@@ -176,7 +177,7 @@ class RollDefenseRule(TargetAbilityRule):
     card_type = 'generic'
 
     def __init__(self, state, pilot_id):
-        super(RollDefenseRule, self).__init__(state, 'rollDefense', pilot_id)
+        super(RollDefenseRule, self).__init__(state, 'doRollDefense', pilot_id)
 
     def _getEdges(self, state):
         roll_edge = RollDefenseEdge(self.pilot_id)
@@ -207,7 +208,7 @@ class CompareResultsRule(TargetAbilityRule):
     card_type = 'generic'
 
     def __init__(self, state, pilot_id):
-        super(CompareResultsRule, self).__init__(state, 'compareResults', pilot_id)
+        super(CompareResultsRule, self).__init__(state, 'doCompareResults', pilot_id)
 
     def _getEdges(self, state):
         return [CompareResultsEdge(self.pilot_id)]

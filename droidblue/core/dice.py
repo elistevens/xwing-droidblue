@@ -108,6 +108,7 @@ class DicePool(object):
 
 
 class AttackDicePool(DicePool):
+    # faces = 'CHHHffxx'
     faces = 'CHHHffxx'
     cache = {}
 
@@ -148,10 +149,11 @@ class StateBackedDicePool(DicePool):
         face_dict = {}
         for face in sorted(set(self.faces)):
             face_dict[face] = 0
-            self.state._setRawStat(self.pilot_id, 'rolled_' + face, 0)
+            # self.state._setRawStat(self.pilot_id, 'rolled_' + face, 0)
 
         for face in value:
             face_dict[face] += 1
+        for face in face_dict:
             self.state._setRawStat(self.pilot_id, 'rolled_' + face, face_dict[face])
 
     @property
@@ -167,10 +169,11 @@ class StateBackedDicePool(DicePool):
         face_dict = {}
         for face in sorted(set(self.faces)):
             face_dict[face] = 0
-            self.state._setRawStat(self.pilot_id, 'rerolled_' + face, 0)
+            # self.state._setRawStat(self.pilot_id, 'rerolled_' + face, 0)
 
         for face in value:
             face_dict[face] += 1
+        for face in face_dict:
             self.state._setRawStat(self.pilot_id, 'rerolled_' + face, face_dict[face])
 
 
@@ -180,6 +183,10 @@ class StateBackedAttackDicePool(StateBackedDicePool):
 
 class StateBackedDefenseDicePool(StateBackedDicePool):
     faces = 'EEEffxxx'
+    cache = {}
+
+class StateBackedAttackDicePoolNoCrits(StateBackedDicePool):
+    faces = 'HHHHffxx'
     cache = {}
 
 

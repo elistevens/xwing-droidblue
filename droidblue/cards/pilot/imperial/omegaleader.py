@@ -1,6 +1,6 @@
-from droidblue.core.rules import AttackAbilityRule, TargetAbilityRule
+from droidblue.core.rules import ActiveAbilityRule, TargetAbilityRule
 
-class OmegaLeaderAttackRule(AttackAbilityRule):
+class OmegaLeaderAttackRule(ActiveAbilityRule):
     card_type = 'pilot'
     card_name = 'omegaleader'
 
@@ -10,7 +10,7 @@ class OmegaLeaderAttackRule(AttackAbilityRule):
 
     def isAvailable(self, state):
         return super(OmegaLeaderAttackRule, self).isAvailable(state) and \
-            state.hasTargetLock(state.attack_id, state.target_id)
+            state.hasTargetLock(state.active_id, state.target_id)
 
     def filterEdges(self, edge_list, state):
         return []
@@ -25,7 +25,7 @@ class OmegaLeaderDefendRule(TargetAbilityRule):
 
     def isAvailable(self, state):
         return super(OmegaLeaderDefendRule, self).isAvailable(state) and \
-            state.hasTargetLock(state.target_id, state.attack_id)
+            state.hasTargetLock(state.target_id, state.active_id)
 
     def filterEdges(self, edge_list, state):
         # TODO: properly handle defensive palpatine

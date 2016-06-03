@@ -6,8 +6,16 @@ log.setLevel(logging.DEBUG)
 
 __author__ = 'elis'
 
+import collections
 import functools
 import re
+
+OpportunityTuple = collections.namedtuple('OpportunityTuple', ['step', 'count', 'rule', 'pilot_id', 'upgrade_id'])
+default_oppKey = OpportunityTuple(None, None, None, None, None)
+
+RuleKeyTuple = collections.namedtuple('RuleKeyTuple', ['step', 'active_id', 'target_id'])
+default_ruleKey = RuleKeyTuple(None, None, None)
+
 
 @functools.total_ordering
 class Rule(object):
@@ -23,23 +31,30 @@ class Rule(object):
 
 
     def __init__(self, state, key_list, pilot_id, upgrade_id=None):
+        from droidblue.core.steps import steps_str2id_dict
+
         assert isinstance(key_list, list)
         assert isinstance(pilot_id, int)
         assert isinstance(upgrade_id, (int, type(None)))
 
+        self.rule_id = state.getRuleId()
         self.pilot_id = pilot_id
         self.upgrade_id = upgrade_id
-        self.opportunity_key = "{}:{}:{}".format(type(self).__name__, id(self), pilot_id)
-        if upgrade_id is not None:
-            self.opportunity_key += "-{}".format(upgrade_id)
+        self.player_id = state.getStat(pilot_id, 'player_id')
+        # self.opportunity_key = "{}:{}:{}".format(type(self).__name__, id(self), pilot_id)
+        # if upgrade_id is not None:
+        #     self.opportunity_key += "-{}".format(upgrade_id)
 
-        for key_tup in key_list:
-            assert isinstance(key_tup, tuple)
-            
+        for key in key_list:
+
             if self.isStatRule_bool:
-                state.addStatRule(self, key_tup)
+                assert isinstance(key, str)
+                assert key in state.stat_set
+                state.addStatRule(self, key)
             else:
-                state.addEdgeRule(self, key_tup)
+                assert isinstance(key, RuleKeyTuple)
+                assert key.step in steps_str2id_dict
+                state.addEdgeRule(self, key.step, key.active_id, key.target_id)
 
     def __repr__(self):
         extra_str = ', '.join(['{}:{!r}'.format(k, v) for k, v in sorted(self.__dict__.iteritems())])
@@ -66,34 +81,49 @@ class Rule(object):
     def isAvailable(self, state):
         return True
 
-    def getOpportunityKey(self, state):
-        opportunity_key = (self.opportunity_key,)
+    def getOpportunityKeys(self, state):
+        opportunity_key = default_oppKey._replace(
+            rule=type(self).__name__,
+            pilot_id=self.pilot_id,
+            upgrade_id=self.upgrade_id if self.upgrade_id is not None else 9999)
+
         if not self.isOncePerRound_bool:
-            opportunity_key += state.getOpportunityStepKey()
+            opportunity_key = opportunity_key._replace(**state.getStepOpportunityKeys())
 
         return [opportunity_key]
 
-    def getPassOpportunityKey(self, state):
-        player_id = state.getStat(self.pilot_id, 'player_id')
-        opportunity_key = ('pass', player_id)
+    @classmethod
+    def getPassOpportunityKey(cls, state, player_id):
+        opportunity_dict = {
+            'step': None,
+            'count': 9999,
+            'rule': -1,  # Pass
+            'pilot_id': player_id,
+            'upgrade_id': 9999,
+        }
+        opportunity_dict.update(state.getStepOpportunityKeys())
 
-        return opportunity_key + state.getOpportunityStepKey()
+        return OpportunityTuple(**opportunity_dict)
+
 
     def getEdges(self, state):
         if self.isOncePerGame_bool and state.getUpgradeStat(self.pilot_id, self.upgrade_id, 'token') == 0:
             return []
 
-        if self.getPassOpportunityKey(state) in state.usedOpportunity_set:
+        if state.hasOpportunityBeenUsed(self.getPassOpportunityKey(state, self.player_id)):
             return []
 
-        opportunity_list = self.getOpportunityKey(state)
+        # if self.getPassOpportunityKey(state) in state.usedOpportunity_set:
+        #     return []
+
+        opportunity_list = self.getOpportunityKeys(state)
 
         # log.info('===============================')
         # log.info(opportunity_list)
         # log.info(sorted(state.usedOpportunity_set))
 
         for opportunity_key in opportunity_list:
-            if opportunity_key in state.usedOpportunity_set:
+            if state.hasOpportunityBeenUsed(opportunity_key):
                 return []
 
         edge_list = self._getEdges(state) or []
@@ -136,18 +166,13 @@ def _str2tup(item):
 
 class ActiveAbilityRule(Rule):
     def __init__(self, state, key_list, pilot_id, upgrade_id=None):
-        key_list = [_str2tup(key_tup) + ('active', pilot_id) for key_tup in _str2list(key_list)]
+        key_list = [default_ruleKey._replace(step=key_str, active_id=pilot_id) for key_str in _str2list(key_list)]
         super(ActiveAbilityRule, self).__init__(state, key_list, pilot_id, upgrade_id=None)
 
-class AttackAbilityRule(Rule):
-    """Note that this is a "when attacking" ability, not the actual attack."""
-    def __init__(self, state, key_list, pilot_id, upgrade_id=None):
-        key_list = [_str2tup(key_tup) + ('attack', pilot_id) for key_tup in _str2list(key_list)]
-        super(AttackAbilityRule, self).__init__(state, key_list, pilot_id, upgrade_id=None)
 
 class TargetAbilityRule(Rule):
     def __init__(self, state, key_list, pilot_id, upgrade_id=None):
-        key_list = [_str2tup(key_tup) + ('target', pilot_id) for key_tup in _str2list(key_list)]
+        key_list = [default_ruleKey._replace(step=key_str, target_id=pilot_id) for key_str in _str2list(key_list)]
         super(TargetAbilityRule, self).__init__(state, key_list, pilot_id, upgrade_id=None)
 
 

@@ -11,10 +11,10 @@ import re
 
 class Score(object):
     @classmethod
-    def averageScores(cls, state_list, owner_id):
-        individual_list = [0] * len(state_list[0][1])
+    def averageScores(cls, scoreWeight_list):
+        individual_list = [0] * len(scoreWeight_list[0][0].individual_list)
         total_weight = 0.0
-        for weight, score in state_list:
+        for score, weight in scoreWeight_list:
             total_weight += weight
 
             for i, subscore_num in enumerate(score.individual_list):
@@ -22,7 +22,7 @@ class Score(object):
 
         individual_list = [s / total_weight for s in individual_list]
 
-        return cls(None, owner_id, _individual_list=individual_list)
+        return cls(None, _individual_list=individual_list)
 
 
     def __init__(self, state, _individual_list=None, _lossFor=None):
@@ -31,10 +31,9 @@ class Score(object):
         if state:
             self.individual_list = [self.computeIndividualScore(state, player_id) for player_id in range(state.const.player_count)]
         else:
-            assert _individual_list
+            assert _individual_list, repr(_individual_list)
             self.individual_list = list(_individual_list)
 
-        # self.composite_num = self.computeCompositeScore(state.playerWithInit_id)
 
     def __repr__(self):
         extra_str = "{}, margin {}".format(self.individual_list, [self.marginFor(p) for p in range(len(self.individual_list))])
@@ -65,33 +64,47 @@ class MovDeltaScore(Score):
     def computeIndividualScore(self, state, player_id):
         pointsLost_int = 0
         hasUndestroyedPilots_bool = False
-        for pilot_id, pilot in enumerate(state.pilots):
+
+        for pilot_id in range(state.const.pilot_count):
             if state.getStat(pilot_id, 'player_id') == player_id:
-                if state.getStat(pilot_id, 'isDestroyed'):
-                    pointsLost_int += state.getStat(pilot_id, 'points')
-                elif state.getStat(pilot_id, 'grantsHalfMov'):
-                    pointsLost_int += int(state.getStat(pilot_id, 'points') / 2)
+                totalHp, currentHp, hull, points, isLarge = state.getStat_damage(pilot_id)
+
+                hp_frac = currentHp / totalHp
+
+                if hull == 0:
+                    pointsLost_int += points
+                elif isLarge and hp_frac <= 0.5:
+                    pointsLost_int += int(points / 2)
                     hasUndestroyedPilots_bool = True
                 else:
                     hasUndestroyedPilots_bool = True
 
         return (100 - pointsLost_int) if hasUndestroyedPilots_bool else 0
 
-class MovAndHpDeltaScore(MovDeltaScore):
+class MovAndHpDeltaScore(Score):
     def computeIndividualScore(self, state, player_id):
-        mov_score = super(MovAndHpDeltaScore, self).computeIndividualScore(state, player_id)
-
+        # This copies the above for speed reasons; reuse would result in
+        # state.getStat_damage being called twice.
         pointsLost_int = 0
         hasUndestroyedPilots_bool = False
-        for pilot_id, pilot in enumerate(state.pilots):
+
+        for pilot_id in range(state.const.pilot_count):
             if state.getStat(pilot_id, 'player_id') == player_id:
-                if state.getStat(pilot_id, 'isDestroyed'):
-                    pointsLost_int += state.getStat(pilot_id, 'points')
+                totalHp, currentHp, hull, points, isLarge = state.getStat_damage(pilot_id)
+
+                hp_frac = currentHp / totalHp
+
+                if hull == 0:
+                    pointsLost_int += points
+                elif isLarge and hp_frac <= 0.5:
+                    pointsLost_int += int(points / 2)
+                    hasUndestroyedPilots_bool = True
                 else:
-                    pointsLost_int += int(state.getStat(pilot_id, 'points') * (state.getStat(pilot_id, 'currentHp') / state.getStat(pilot_id, 'totalHp')))
                     hasUndestroyedPilots_bool = True
 
-        return mov_score + (100 - pointsLost_int) if hasUndestroyedPilots_bool else 0
+                pointsLost_int += int(points * hp_frac)
+
+        return (200 - pointsLost_int) if hasUndestroyedPilots_bool else 0
 
 class TournamentMovDeltaScore(MovDeltaScore):
     def marginFor(self, player_id):

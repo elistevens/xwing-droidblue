@@ -4,127 +4,113 @@ log.setLevel(logging.WARNING)
 log.setLevel(logging.INFO)
 log.setLevel(logging.DEBUG)
 
-from collections import deque
-
-class Stepper(object):
-    def __init__(self, step_iter, active_id=None, attack_id=None, target_id=None):
-        self.step_deq = deque(step_iter)
-        self.step_tup = None
-        self.count = None
-        self.active_id = active_id
-        self.attack_id = attack_id
-        self.target_id = target_id
-
-        assert len(self.step_deq) > 0
-
-    def nextStep(self, state):
-        if not self.step_deq:
-            raise StopIteration()
-
-        self.step_tup = self.step_deq.popleft()
-
-        if isinstance(self.step_tup, str):
-            self.step_tup = (self.step_tup,)
-
-        # log.debug("{}: {}, {}, {}".format(self.step_tup, self.active_id, self.attack_id, self.target_id))
-
-        return self.step_tup
-
-    @classmethod
-    def steps_setup(cls):
-        yield ('placeObstacles',)
-        yield ('placeShips',)
+def steps_setup():
+    yield 'placeObstacles'
+    yield 'placeShips'
 
 
-    @classmethod
-    def steps_round(cls, dials=False):
-        # for se in _steps_beforeAfter():
-        #     yield ('dials',) + se
-        if dials:
-            yield ('dials',)
+def steps_round(dials=True, activation=True, combat=True, endphase=True):
+    if dials:
+        yield 'doChooseDials'
 
+    if activation:
         for beforeAfter in _steps_beforeAfter(decloak=True):
-            yield beforeAfter + ('activation',)
-            # for psinit in _steps_ps_init(player_count):
-            #     yield beforeAfter + ('activation',) + psinit + ('chooseActivationShip',)
+            yield beforeAfter + 'ChooseActivation'
 
+    if combat:
         for beforeAfter in _steps_beforeAfter():
-            yield beforeAfter + ('combat',)
-            # for psinit in _steps_ps_init(player_count, reverse=True):
-            #     yield beforeAfter + ('combat',) + psinit + ('chooseCombatShip',)
+            yield beforeAfter + 'ChooseCombat'
 
+    if endphase:
         for beforeAfter in _steps_beforeAfter():
-            yield beforeAfter + ('endphase',)
-            # for psinit in _steps_ps_init(player_count, reverse=True):
-            #     yield beforeAfter + ('endphase',) + psinit + ('chooseEndShip',)
+            yield beforeAfter + 'ChooseEndphase'
 
 
-    @classmethod
-    def steps_dial(cls):
-        yield ('setDial',)
+def steps_dials():
+    yield 'setDial'
 
-    @classmethod
-    def steps_activation(cls, isIonized=False):
-        if not isIonized:
-            for beforeAfter in _steps_beforeAfter():
-                yield beforeAfter + ('revealDial',)
-
+def steps_activation(isIonized=False):
+    if not isIonized:
         for beforeAfter in _steps_beforeAfter():
-            yield beforeAfter + ('performManeuver',)
+            yield beforeAfter + 'RevealDial'
 
-        for beforeAfter in _steps_beforeAfter():
-            yield beforeAfter + ('checkPilotStress',)
+    for beforeAfter in _steps_beforeAfter():
+        yield beforeAfter + 'PerformManeuver'
 
-        for beforeAfter in _steps_beforeAfter():
-            yield beforeAfter + ('performAction',)
+    for beforeAfter in _steps_beforeAfter():
+        yield beforeAfter + 'CheckPilotStress'
 
-
-    @classmethod
-    def steps_combat(cls):
-        yield ('chooseWeaponAndTarget',)
-
-    @classmethod
-    def steps_attack(cls):
-        yield ('gatherExtraAttackDice',)
-        for beforeAfter in _steps_beforeAfter():
-            yield beforeAfter + ('rollAttack',)
-
-        yield ('defenderModifyAttack',)
-        yield ('attackerModifyAttack',)
-
-        yield ('gatherExtraDefenseDice',)
-        for beforeAfter in _steps_beforeAfter():
-            yield beforeAfter + ('rollDefense',)
-
-        yield ('attackerModifyDefense',)
-        yield ('defenderModifyDefense',)
-
-        for beforeAfter in _steps_beforeAfter():
-            yield beforeAfter + ('compareResults',)
+    for beforeAfter in _steps_beforeAfter():
+        yield beforeAfter + 'PerformAction'
 
 
-    @classmethod
-    def steps_endphase(cls):
-        yield ('cleanup',)
+def steps_combat():
+    yield 'chooseWeaponAndTarget'
+
+def steps_attack():
+    yield 'gatherAttackDice'
+    for beforeAfter in _steps_beforeAfter():
+        yield beforeAfter + 'RollAttack'
+
+    yield 'defenderModifyAttack'
+    yield 'attackerModifyAttack'
+
+    yield 'gatherDefenseDice'
+    for beforeAfter in _steps_beforeAfter():
+        yield beforeAfter + 'RollDefense'
+
+    yield 'attackerModifyDefense'
+    yield 'defenderModifyDefense'
+
+    for beforeAfter in _steps_beforeAfter():
+        yield beforeAfter + 'CompareResults'
 
 
-
-# def _steps_init(player_count):
-#     for init in range(player_count):
-#         yield (init,)
-#
-# # Need to change this up to instead just be the groups of pilots by PS
-# # can't hook into steps the current way
-# def _steps_ps_init(player_count, reverse=False):
-#     for ps in sorted(range(13), reverse=reverse):
-#         for init in _steps_init(player_count):
-#             yield (ps,) + init
+def steps_endphase():
+    yield 'cleanup'
 
 
 def _steps_beforeAfter(decloak=False):
-    yield ('before',)
+    yield 'before'
     if decloak:
-        yield ('decloak',)
-    # yield ('perform',)
-    yield tuple()
-    yield ('after',)
+        yield 'decloak'
+    yield 'do'
+    yield 'after'
+
+steps_str2id_dict = {}
+steps_str2id_dict[None] = 9999
+steps_str2id_dict['*'] = len(steps_str2id_dict)
+
+for _step_gen in [steps_setup(), steps_round(True), steps_dials(), steps_activation(), steps_combat(), steps_attack(), steps_endphase()]:
+    for _step_str in _step_gen:
+        steps_str2id_dict[_step_str] = len(steps_str2id_dict)
+
+# steps_str2id_dict['doPerformAction'] = len(steps_str2id_dict)
+steps_str2id_dict['dealtCrit'] = len(steps_str2id_dict)
+steps_str2id_dict['dealtHit'] = len(steps_str2id_dict)
+
+from droidblue.core.state import BoardState
+for _token_str in BoardState.token_list:
+    steps_str2id_dict['assign_{}'.format(_token_str)] = len(steps_str2id_dict)
+    steps_str2id_dict['remove_{}'.format(_token_str)] = len(steps_str2id_dict)
+    steps_str2id_dict['clear_{}'.format(_token_str)] = len(steps_str2id_dict)
+
+for _flag_str in BoardState.flag_list:
+    steps_str2id_dict['flag_{}'.format(_flag_str)] = len(steps_str2id_dict)
+    steps_str2id_dict['unflag_{}'.format(_flag_str)] = len(steps_str2id_dict)
+
+
+steps_str2id_dict['testing'] = len(steps_str2id_dict) + 9000
+
+# for k,v in sorted(steps_str2id_dict.iteritems()):
+#     print k, v
+
+steps_id2str_dict = {v:k for k,v in steps_str2id_dict.iteritems()}
+
+# for k,v in sorted(steps_id2str_dict.iteritems()):
+#     print k, v
+
+assert len(steps_str2id_dict) == len(steps_id2str_dict)
+assert len(steps_str2id_dict) < 9000
+
+    

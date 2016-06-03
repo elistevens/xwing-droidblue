@@ -6,20 +6,21 @@ __author__ = 'elis'
 import logging
 log = logging.getLogger(__name__)
 log.setLevel(logging.WARNING)
-# log.setLevel(logging.INFO)
-# log.setLevel(logging.DEBUG)
+log.setLevel(logging.INFO)
+log.setLevel(logging.DEBUG)
 
+import collections
 import copy
 import uuid
 
-from collections import deque
 
 import numpy as np
 
-from droidblue.core.edge import ChoosePassEdge
-from droidblue.core.steps import Stepper
-from droidblue.core.rules import Rule
+from droidblue.core.edge import ChoosePassEdge, RandomEdge
+from droidblue.core.rules import Rule, default_ruleKey
 from droidblue.core.dice import StateBackedAttackDicePool, StateBackedDefenseDicePool
+
+StepTuple = collections.namedtuple('StepTuple', ['step', 'count', 'active_id', 'target_id'])
 
 class StateBase(object):
     stat_list = []
@@ -35,16 +36,60 @@ class StateBase(object):
         else:
             self.stat_array = None
 
+    def __eq__(self, other):
+        if type(self) != type(other):
+            log.debug("type({}) != type({})".format(type(self), type(other)))
+            return False
+
+        if self.__dict__.keys() != other.__dict__.keys():
+            log.debug("keys({}) != keys({})".format(self.__dict__.keys(), other.__dict__.keys()))
+            return False
+
+        for k,v in self.__dict__.iteritems():
+            o = other.__dict__[k]
+            if type(v) != type(o):
+                log.debug("{}: type({}) != type({})".format(k, type(v), type(o)))
+                return False
+
+            if isinstance(v, np.ndarray):
+                if not (v == o).all():
+                    log.debug(v)
+                    log.debug(o)
+                    return False
+            else:
+                if v != o:
+                    log.debug("{}: {} != {}".format(k, v, o))
+                    return False
+
+        return True
+
 
     # Rules
-    def addEdgeRule(self, rule, key_tup):
-        self.edgeRules_dict.setdefault(key_tup, []).append(rule)
+    def addEdgeRule(self, rule, step, active_id, target_id):
+        rule_sublist = self.edgeRules_dict.setdefault(step, [[], {}, {}])
 
-    def getEdgeRules(self, key_list):
+        if active_id is not None:
+            assert target_id is None
+            rule_sublist[1].setdefault(active_id, []).append(rule)
+        elif target_id is not None:
+            assert active_id is None
+            rule_sublist[2].setdefault(target_id, []).append(rule)
+        else:
+            rule_sublist[0].append(rule)
+
+    def getEdgeRules(self, step, active_id, target_id):
         # Returns all rules, but subclasses are free to filter first
         rule_list = []
-        for key_tup in key_list:
-            rule_list.extend(self.edgeRules_dict.get(key_tup, []))
+        for step_str in [Rule.wildcard_key, step]:
+            rule_sublist = self.edgeRules_dict.get(step_str, [[], {}, {}])
+            rule_list.extend(rule_sublist[0])
+
+            if active_id is not None:
+                rule_list.extend(rule_sublist[1].get(active_id, []))
+
+            if target_id is not None:
+                rule_list.extend(rule_sublist[2].get(target_id, []))
+
         return rule_list
 
     def addStatRule(self, rule, stat_key):
@@ -53,12 +98,12 @@ class StateBase(object):
     def getStatRules(self, key_list):
         # Returns all rules, but subclasses are free to filter first
         rule_list = []
-        for key_tup in key_list:
-            rule_list.extend(self.statRules_dict.get(key_tup, []))
+        for stat_key in key_list:
+            rule_list.extend(self.statRules_dict.get(stat_key, []))
         return rule_list
 
     # Stats, which includes the raw storage for tokens and flags
-    def _getStat(self, pilot_id, stat_key):
+    def getStat(self, pilot_id, stat_key):
         result = self._getRawStat(pilot_id, stat_key)
         for rule in self.getStatRules([stat_key]):
             result = getattr(rule, stat_key, lambda s, r: r)(self, result)
@@ -74,8 +119,8 @@ class StateBase(object):
 
 
     # Edges
-    def _getEdges(self, key_list):
-        rule_list = self.getEdgeRules(key_list)
+    def _getEdges(self, step, active_id, target_id):
+        rule_list = self.getEdgeRules(step, active_id, target_id)
         edge_list = []
         for rule in rule_list:
             edge_list.extend(rule.getEdges(self))
@@ -106,6 +151,7 @@ class ConstantState(StateBase):
     stat_list = [
         'player_id',
         'points',
+        'unique',
         'ps',
         'atk',
         'agi',
@@ -127,6 +173,7 @@ class ConstantState(StateBase):
         self.player_count = len(squads_list)
         self.pilot_count = 0
         self.upgrade_count = 0
+        self.rule_count = 0
         self.ship_list = []
         self.pilot_list = []
 
@@ -146,6 +193,10 @@ class ConstantState(StateBase):
                 self.pilot_list.append(pilot_json['name'])
 
                 pilot_id += 1
+
+    def getRuleId(self):
+        self.rule_count += 1
+        return self.rule_count
 
 
 class BoardState(StateBase):
@@ -178,10 +229,6 @@ class BoardState(StateBase):
         'checkPilotStress:stress',
         'checkPilotStress:green',
         'isDestroyed',
-
-        # 'chosen_dials',
-        # 'chosen_activation',
-        # 'chosen_combat',
     ]
     flag_set = set(flag_list)
     targetLock_list = [
@@ -223,30 +270,23 @@ class BoardState(StateBase):
     def const(self):
         return ConstantState.getInst(self.const_id)
 
-    def __init__(self, const_id):
+    def getRuleId(self):
+        return self.const.getRuleId()
+
+    def __init__(self, const_id, perspectivePlayer_id=None, dialWeight_dict=None): #, clone=None):
         """
         BoardStateNode.__init__ is only called at the start of the game.
-        All other instances are created by deepcopying the previous state, then
-        applying the edge.transformImpl function.
+        All other instances are created by shallow copying the previous state,
+        then applying the edge.transformImpl function.
         """
         self.const_id = const_id
+        self.perspectivePlayer_id = perspectivePlayer_id
+        self.dialWeight_dict = dialWeight_dict or {}
         super(BoardState, self).__init__(self.const.pilot_count)
 
-        self.pickle_str = None
-
-
         self.fastforward_list = []
-        self.edge_list = None
-        self.usedOpportunity_set = set()
-        self.playerWithInit_id = 999 # Inf, essentially
-
-        # self.attackDice_pool = None
-        # self.defenseDice_pool = None
-
-        self.upgrade_array = np.zeros((self.const.upgrade_count, 2), np.int8)
-        self.position_array = np.zeros((self.const.pilot_count, 5), np.float32)
         self.maneuver_list = [None] * self.const.pilot_count
-        # self.pilots = []
+        self.opportunity_set = set()
 
         hull_max = 1
         for pilot_id in range(self.const.pilot_count):
@@ -255,20 +295,35 @@ class BoardState(StateBase):
             # self.pilots.append(Pilot(self, pilot_id))
 
         self.damage_array = np.zeros((self.const.pilot_count, hull_max), np.int8)
+        self.position_array = np.zeros((self.const.pilot_count, 5), np.float32)
+        self.upgrade_array = np.zeros((self.const.upgrade_count, 2), np.int8)
 
-        self._stepper_stack = []
-        self._stepper_index = 0
-        self._stepper_count = 0
-        self.pushStepper(Stepper(Stepper.steps_setup()))
+        self.step_list = []
+        self.step_index = 0
+        self._step_count = 0
 
+    def clone(self):
+        # other = BoardState(None, clone=self)
+        # self.stat_array.flags.writeable = False
+        # self.damage_array.flags.writeable = False
+        # self.position_array.flags.writeable = False
+        # self.upgrade_array.flags.writeable = False
+
+        other = copy.copy(self)
+        other.fastforward_list = []
+        other.step_list = self.step_list[:]
+        other.maneuver_list = self.maneuver_list[:]
+        other.opportunity_set = set(self.opportunity_set)
+
+        return other
 
     # Rules
-    def getEdgeRules(self, key_list):
+    def getEdgeRules(self, step, active_id, target_id):
         # Here we collect rules for both global game state, as well as local
         # board state, check to make sure that those rules are active, and pass
         # them along.
-        rule_list = super(BoardState, self).getEdgeRules(key_list)
-        rule_list.extend(self.const.getEdgeRules(key_list))
+        rule_list = super(BoardState, self).getEdgeRules(step, active_id, target_id)
+        rule_list.extend(self.const.getEdgeRules(step, active_id, target_id))
 
         replaced_set = set(rule.replacesRule_cls for rule in rule_list if rule.replacesRule_cls)
         rule_list = sorted([rule for rule in rule_list if type(rule) not in replaced_set])
@@ -276,12 +331,12 @@ class BoardState(StateBase):
 
         return rule_list
 
-    def getStatRules(self, key_list):
+    def getStatRules(self, stat_key):
         # Here we collect rules for both global game state, as well as local
         # board state, check to make sure that those rules are active, and pass
         # them along.
-        rule_list = super(BoardState, self).getStatRules(key_list)
-        rule_list.extend(self.const.getStatRules(key_list))
+        rule_list = super(BoardState, self).getStatRules(stat_key)
+        rule_list.extend(self.const.getStatRules(stat_key))
 
         replaced_set = set(rule.replacesRule_cls for rule in rule_list if rule.replacesRule_cls)
         rule_list = sorted([rule for rule in rule_list if type(rule) not in replaced_set])
@@ -291,7 +346,15 @@ class BoardState(StateBase):
 
     # Stats
     def getStat(self, pilot_id, stat_key):
-        return self._getStat(pilot_id, stat_key)
+        try:
+            return super(BoardState, self).getStat(pilot_id, stat_key)
+        except KeyError:
+            pass
+
+        try:
+            return self.const.getStat(pilot_id, stat_key)
+        except KeyError:
+            pass
 
     def _getRawStat(self, pilot_id, stat_key):
         try:
@@ -313,135 +376,127 @@ class BoardState(StateBase):
         if stat_key == 'ionizedAt_count':
             return 2 if self.const._getRawStat(pilot_id, 'isLarge') else 1
 
-        if stat_key == 'totalHp':
-            return int(self._getStat(pilot_id, 'hull_max') + self._getStat(pilot_id, 'shield_max'))
-
-        if stat_key == 'currentHp':
-            hull_int = self._getStat(pilot_id, 'hull_max')
-            hull_int -= self._getStat(pilot_id, 'damage')
-            return int(hull_int + self._getStat(pilot_id, 'shield'))
-
-        if stat_key == 'damage':
-            return int(np.sum(self.damage_array[pilot_id] != 0) + np.sum(self.damage_array[pilot_id] == 2))
 
         return 0
 
+    def _setRawStat(self, pilot_id, stat_key, value):
+        self.stat_array = np.copy(self.stat_array)
+
+        return super(BoardState, self)._setRawStat(pilot_id, stat_key, value)
+
+    def getStat_damage(self, pilot_id):
+        hull_max = int(self.getStat(pilot_id, 'hull_max'))
+        shield_max = int(self.getStat(pilot_id, 'shield_max'))
+        shield = int(self._getRawStat(pilot_id, 'shield'))
+        damage = int(np.sum(self.damage_array[pilot_id] != 0) + np.sum(self.damage_array[pilot_id] == 2))
+        points = int(self.const._getRawStat(pilot_id, 'points'))
+        isLarge = bool(self.const._getRawStat(pilot_id, 'isLarge'))
+
+        hull = hull_max - damage
+        totalHp = hull_max + shield_max
+        currentHp = shield + hull
+
+        return totalHp, currentHp, hull, points, isLarge
+
+
     # Edges
     def getEdges(self, fastforward_bool=True):
+        edge_list = []
+        activePlayer_id = None
+
         # while True:
         for _ in range(100):
-            # Make sure we're using the deepest stepper
-            if self._stepper_index >= len(self._stepper_stack):
-                self._stepper_index = len(self._stepper_stack) - 1
+            # # Make sure we're using the correct step
+            if self.step_index != 0:
+                self.step_index = 0
 
-            if self._stepper_index < len(self._stepper_stack) - 1:
-                self._stepper_index = len(self._stepper_stack) - 1
 
-            if self.step is None:
-                self.nextStep()
+            step_str, _count, active_id, target_id = self._step
 
-            base_list = [Rule.wildcard_key, self.step]
-            key_list = []
 
-            for step in base_list:
-                if not isinstance(step, tuple):
-                    step = (step,)
+            edge_list = self._getEdges(step_str, active_id, target_id)
 
-                key_list.append(step)
-                if self.active_id is not None:
-                    key_list.append(step + ('active', self.active_id))
-                if self.attack_id is not None:
-                    key_list.append(step + ('attack', self.attack_id))
-                if self.target_id is not None:
-                    key_list.append(step + ('target', self.target_id))
+            if edge_list:
+                # Restrict to player with the best init
+                activePilot_id = min(edge.active_id for edge in edge_list)
+                activePlayer_id = self.getStat(activePilot_id, 'player_id')
 
-            edge_list = self._getEdges(key_list)
+                edge_list = [edge for edge in edge_list if self.getStat(edge.active_id, 'player_id') == activePlayer_id]
 
-            # Restrict to player with the best init
-            self.playerWithInit_id = 999 # Inf, essentially
-            self.edge_list = []
-            for edge in edge_list:
-                player_id = self.getStat(edge.active_id, 'player_id')
+                # Provide option to pass
+                if edge_list and not any(edge.mandatory_bool for edge in edge_list):
 
-                if player_id < self.playerWithInit_id:
-                    self.edge_list = [edge]
-                    self.playerWithInit_id = player_id
-                elif player_id == self.playerWithInit_id:
-                    self.edge_list.append(edge)
-
-            # Provide option to pass
-            if self.edge_list and not any(edge.mandatory_bool for edge in self.edge_list):
-                pilot_id = self.edge_list[0].active_id
-                player_id = self.getStat(pilot_id, 'player_id')
-                opportunity_key = ('pass', player_id) + self.getOpportunityStepKey()
-                self.edge_list.append(ChoosePassEdge(pilot_id, [opportunity_key]))
+                    passOpportunity_key = Rule.getPassOpportunityKey(self, activePlayer_id)
+                    edge_list.append(ChoosePassEdge(activePilot_id, [passOpportunity_key]))
 
             if fastforward_bool:
                 # Next/Fastforward if nothing interesting to choose from
-                if len(self.edge_list) == 0:
+                if not edge_list:
                     self.nextStep()
 
-                elif len(self.edge_list) == 1:
-                    only_edge = self.edge_list.pop()
+                elif len(edge_list) == 1 and not isinstance(edge_list[0], RandomEdge):
+                    only_edge = edge_list.pop()
                     self.fastforward_list.append(only_edge)
                     # log.info("Fastforward {}: {}".format(fastforward_bool, only_edge))
                     only_edge.getExactState(self, doCopy=False)
-                    self.nextStep()
 
                 else:
                     break
             else:
                 break
 
-        self.edge_list.sort()
-        return self.edge_list
+
+        edge_list.sort()
+        return edge_list, activePlayer_id
 
 
     # Tokens, a special kind of stat
     def getToken(self, pilot_id, token_str):
         assert token_str in self.token_set
-        return self._getStat(pilot_id, token_str)
+        return self.getStat(pilot_id, token_str)
 
     def assignToken(self, pilot_id, token_str):
         assert token_str in self.token_set
-        token_count = self._getStat(pilot_id, token_str)
+        token_count = self.getStat(pilot_id, token_str)
         if token_count < 99:
             self._setRawStat(pilot_id, token_str, token_count + 1)
-        self.pushStepper(Stepper(['assign_{}'.format(token_str)], active_id=pilot_id))
+        self.pushSteps(['assign_{}'.format(token_str)], active_id=pilot_id)
 
     def removeToken(self, pilot_id, token_str):
         assert token_str in self.token_set
-        token_count = self._getStat(pilot_id, token_str)
+        token_count = self.getStat(pilot_id, token_str)
         assert token_count > 0
 
         self._setRawStat(pilot_id, token_str, token_count - 1)
-        self.pushStepper(Stepper(['remove_{}'.format(token_str)], active_id=pilot_id))
+        self.pushSteps(['remove_{}'.format(token_str)], active_id=pilot_id)
 
     def clearToken(self, pilot_id, token_str):
         assert token_str in self.token_set
-        token_count = self._getStat(pilot_id, token_str)
+        token_count = self.getStat(pilot_id, token_str)
         if token_count > 0:
             self._setRawStat(pilot_id, token_str, 0)
-            self.pushStepper(Stepper(['clear_{}'.format(token_str)], active_id=pilot_id))
+            self.pushSteps(['clear_{}'.format(token_str)], active_id=pilot_id)
 
     # Flags, a special kind of stat
     def getFlag(self, pilot_id, flag_str):
         assert flag_str in self.flag_set
-        return bool(self._getStat(pilot_id, flag_str))
+        return bool(self.getStat(pilot_id, flag_str))
 
     def setFlag(self, pilot_id, flag_str):
         assert flag_str in self.flag_set
         self._setRawStat(pilot_id, flag_str, 1)
-        self.pushStepper(Stepper(['flag_{}'.format(flag_str)], active_id=pilot_id))
+        self.pushSteps(['flag_{}'.format(flag_str)], active_id=pilot_id)
 
     def unsetFlag(self, pilot_id, flag_str):
         assert flag_str in self.flag_set
         self._setRawStat(pilot_id, flag_str, 0)
-        self.pushStepper(Stepper(['unflag_{}'.format(flag_str)], active_id=pilot_id))
+        self.pushSteps(['unflag_{}'.format(flag_str)], active_id=pilot_id)
 
     # FIXME: add acquire/spend/discard target lock functions
 
     def dealDamage(self, pilot_id, faceup):
+        self.damage_array = np.copy(self.damage_array)
+
         for i in range(self.damage_array.shape[1]):
             if self.damage_array[pilot_id, i] == 0:
                 # FIXME: make this a random card draw?
@@ -453,112 +508,58 @@ class BoardState(StateBase):
                 break
 
         if faceup:
-            self.pushStepper(Stepper(['dealtCrit'], active_id=pilot_id))
+            self.pushSteps(['dealtCrit'], active_id=pilot_id)
         else:
-            self.pushStepper(Stepper(['dealtHit'], active_id=pilot_id))
+            self.pushSteps(['dealtHit'], active_id=pilot_id)
 
     # Stepper stuff
-    def nextRound(self, includeDials_bool=True):
-        self.pushStepper(Stepper(Stepper.steps_round(includeDials_bool)))
+    def nextRound(self, **kwargs):
+        from droidblue.core.steps import steps_round
+        self.pushSteps(steps_round(**kwargs))
 
-    def pushStepper(self, stepper):
-        log.debug(stepper)
-        self._stepper_stack.append(deque([stepper]))
-        stepper.count = self._stepper_count
-        self._stepper_count += 1
-
-    def appendStepper(self, stepper):
-        log.debug(stepper)
-        self._stepper_stack[self._stepper_index].append(stepper)
-        stepper.count = self._stepper_count
-        self._stepper_count += 1
+    def pushSteps(self, new_list, active_id=None, target_id=None):
+        self._step_count += 1
+        tup_list = [StepTuple(s, self._step_count, active_id, target_id) for s in new_list]
+        self.step_list[self.step_index:self.step_index] = tup_list
+        self.step_index += len(tup_list)
 
 
     def nextStep(self):
-        if self._stepper_index != len(self._stepper_stack) - 1:
-            self._stepper_index = len(self._stepper_stack) - 1
-
-            # log.info(self._stepper_index)
-            # log.info(self._stepper_stack)
-            # if self._stepper_stack and self.step is None:
-            if self.step is None:
-                log.debug("self.step is None; calling self.nextStep()")
-                self.nextStep()
-
-            return
-
-        try:
-            self._stepper_stack[self._stepper_index][0].nextStep(self)
-
-        except StopIteration:
-            self._stepper_stack[self._stepper_index].popleft()
-            log.debug("StopIteration; calling self.nextStep()")
-            self.nextStep()
-            return
-
-        except IndexError:
-            if not self._stepper_stack:
-                log.debug("IndexError; self._stepper_stack is empty")
-                return
-
-            if not self._stepper_stack[self._stepper_index]:
-                self._stepper_stack.pop()
-                log.debug("IndexError; calling self.nextStep()")
-                self.nextStep()
-                return
-
+        if self.step_index != 0:
+            self.step_index = 0
         else:
-            log.debug("self.step is {}".format(self.step))
-
+            try:
+                self.step_list.pop(0)
+            except IndexError:
+                pass
 
     @property
-    def stepper(self):
-        # try:
-        return self._stepper_stack[self._stepper_index][0]
-        # except:
-        #     log.warn(self._stepper_index)
-        #     log.warn(self._stepper_stack)
-        #     raise
+    def _step(self):
+        try:
+            return self.step_list[self.step_index]
+        except IndexError:
+            return StepTuple(None, None, None, None)
 
     @property
     def step(self):
-        return self.stepper.step_tup
+        return self._step.step
 
     @property
     def step_count(self):
-        return self.stepper.step_count
+        return self._step.count
 
     @property
     def active_id(self):
-        return self.stepper.active_id
-    @active_id.setter
-    def active_id(self, value):
-        assert self.stepper.active_id == None
-        self.stepper.active_id = value
+        return self._step.active_id
 
     @property
     def active_pilot(self):
         return Pilot(self, self.active_id)
 
-    @property
-    def attack_id(self):
-        return self.stepper.attack_id
-    @attack_id.setter
-    def attack_id(self, value):
-        assert self.stepper.attack_id == None
-        self.stepper.attack_id = value
-
-    @property
-    def attack_pilot(self):
-        return Pilot(self, self.attack_id)
 
     @property
     def target_id(self):
-        return self.stepper.target_id
-    @target_id.setter
-    def target_id(self, value):
-        assert self.stepper.target_id == None
-        self.stepper.target_id = value
+        return self._step.target_id
 
     @property
     def target_pilot(self):
@@ -570,7 +571,7 @@ class BoardState(StateBase):
 
     @property
     def attackDice_pool(self):
-        return StateBackedAttackDicePool(self, self.attack_id)
+        return StateBackedAttackDicePool(self, self.active_id)
 
     @property
     def defenseDice_pool(self):
@@ -578,11 +579,16 @@ class BoardState(StateBase):
 
 
     def useOpportunity(self, opportunity_list):
-        assert isinstance(opportunity_list, list), repr(opportunity_list)
-        self.usedOpportunity_set.update(opportunity_list)
+        self.opportunity_set.update(opportunity_list)
 
-    def getOpportunityStepKey(self):
-        return (self.stepper.count,) + self.step
+    def hasOpportunityBeenUsed(self, opportunity_key):
+        return opportunity_key in self.opportunity_set
+
+    def getStepOpportunityKeys(self):
+        return {
+            'step': self.step,
+            'count': self.step_list[self.step_index][1],
+        }
 
     def endOfRoundCleanup(self):
         prevStat_array = copy.deepcopy(self.stat_array)
@@ -594,11 +600,7 @@ class BoardState(StateBase):
         self.stat_array[:, self.statIndex_dict['weaponsDisabled']] = prevStat_array[:, self.statIndex_dict['nextRound:weaponsDisabled']]
         self.stat_array[:, self.statIndex_dict['isDestroyed']] = prevStat_array[:, self.statIndex_dict['isDestroyed']]
 
-        self.usedOpportunity_set.clear()
         self.maneuver_list = [None] * self.const.pilot_count
-
-        # for pilot in self.pilots:
-        #     pilot.maneuver_tup = None
 
     def toJson(self):
         j = {'players': [{} for _ in range(self.const.player_count)]}

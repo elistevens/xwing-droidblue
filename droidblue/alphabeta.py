@@ -10,41 +10,8 @@ __author__ = 'elis'
 import copy
 import math
 
+from droidblue.core.edge import RandomEdge
 
-totalStates_count = 0
-
-def findBestScore_minmax(state, score_cls, depth=0, depth_max=100):
-    # assert depth <= depth_max
-    global totalStates_count
-
-    best_score = None
-    bestEdge_list = []
-
-    if depth > depth_max:
-        log.info("Hit depth max...")
-        best_score = score_cls(state)
-    else:
-        if depth == 0:
-            totalStates_count = 0
-        totalStates_count += 1
-
-        try:
-            edge_list = state.getEdges()
-        except IndexError:
-            best_score = score_cls(state)
-        else:
-            for edge in edge_list:
-                child_state = edge.getExactState(state, count=len(edge_list))
-
-                child_score, childEdge_list = findBestScore_minmax(child_state, score_cls, depth+1, depth_max)
-                if best_score is None:
-                    best_score = child_score
-                    bestEdge_list = [edge] + childEdge_list
-                elif child_score.marginFor(state.playerWithInit_id) > best_score.marginFor(state.playerWithInit_id):
-                    best_score = child_score
-                    bestEdge_list = [edge] + childEdge_list
-
-    return best_score, bestEdge_list
 
 def scoreListMinMax(alphaBeta_list, player_id):
     min_score = alphaBeta_list[0]
@@ -61,7 +28,7 @@ def scoreListMinMax(alphaBeta_list, player_id):
 def findBestScore_alphabeta_dispatch(previous_id, state, score_cls, alphaBeta_list, depth, depth_max):
         try:
             edge_list = state.getEdges()
-            deciding_id = state.playerWithInit_id
+            deciding_id = state.activePlayer_id
 
             if previous_id is None:
                 previous_id = deciding_id
@@ -111,7 +78,7 @@ def findBestScore_alphabeta(state, score_cls, alphaBeta_list=None, depth=0, dept
 
         try:
             edge_list = state.getEdges()
-            deciding_id = state.playerWithInit_id
+            deciding_id = state.activePlayer_id
         except IndexError:
             best_score = score_cls(state)
         else:

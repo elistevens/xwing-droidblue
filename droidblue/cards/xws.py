@@ -62,6 +62,16 @@ for raw_dict in raw.pilotData_list:
         'stats': {'ps': raw_dict['skill']},
     }
 
+    try:
+        ship_dict[canonicalize(raw_dict['ship'])].setdefault('pilots', {})[canonicalize(raw_dict['name'])] = {
+            'stats': {
+                'ps': raw_dict['skill'],
+                'unique': raw_dict.get('unique', False),
+            },
+        }
+    except:
+        print raw_dict
+
 """
     "JumpMaster 5000": {
         "name": "JumpMaster 5000",
@@ -98,4 +108,28 @@ for raw_dict in raw.pilotData_list:
         "points": 23,
         "slots": []
     },
+
+('aggressor', 6) ['ig88a', 'ig88c', 'ig88b', 'ig88d']
+('tiefighter', 5) ['wingedgundark', 'nightbeast']
+('tiefighter', 6) ['darkcurse', 'backstabber', 'youngster']
+('tiefighter', 7) ['maulermithel', 'scourge']
+('tiefofighter', 7) ['omegaace', 'zetaleader']
+('tieinterceptor', 5) ['felswrath', 'lieutenantlorrir']
+('tieinterceptor', 7) ['turrphennir', 'tetrancowall']
+('xwing', 5) ['biggsdarklighter', 'hobbieklivian']
+('xwing', 8) ['wesjanson', 'lukeskywalker']
+
+('tiedefender', 6) ['glaivesqua', 'colonelvessery']
+('tiefighter', 3) ['obsidiansquadronpilot', 'chaser']
+('tiefighter', 4) ['blacksquadronpilot', 'wampa']
+('tiefofighter', 4) ['epsilonace', 'omegasquadronpilot']
+('tieinterceptor', 6) ['kirkanos', 'royalguardpilot']
+
+
+('firespray31', 5) ['mandalorianmercenary', 'krassistrelix']
+('firespray31', 7) ['kathscarlet', 'kathscarletscum']
+('firespray31', 8) ['bobafett', 'bobafettscum']
+('ywing', 2) ['goldsquadronpilot', 'syndicatethug']
+('ywing', 4) ['graysquadronpilot', 'hiredgun']
+
 """

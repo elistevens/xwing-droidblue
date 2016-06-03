@@ -2,11 +2,11 @@
 import random
 import sys
 
-import droidblue.alphabeta
+import droidblue.minmax
 
 from droidblue.core.state import BoardState
 from droidblue.testing.fixtures import chase_state
-from droidblue.alphabeta import findBestScore_minmax, findBestScore_alphabeta
+from droidblue.minmax import findBestScore_minmax
 from droidblue.core.score import MovAndHpDeltaScore
 
 class Search(object):
@@ -23,18 +23,23 @@ class SearchPlay(object):
 
     def main(self, sys_argv):
         self.state = self.root_state
-        self.state.nextRound()
+        self.state.perspectivePlayer_id = 0
+        self.state.nextRound(dials=False, activation=False, combat=True, endphase=False)
 
-        score, edge_list = findBestScore_minmax(self.state, MovAndHpDeltaScore)
+        score, edge_list, isDeterministic_bool = findBestScore_minmax(self.state, MovAndHpDeltaScore)
         # score, edge_list = findBestScore_alphabeta(self.state, MovAndHpDeltaScore)
 
-        print score.individual_list
+        if score:
+            print score.individual_list
         for edge in edge_list:
             print edge
 
         # print json.dumps(self.state.toJson(), indent=4, sort_keys=True)
 
-        print droidblue.alphabeta.totalStates_count
+        print 'total:  ', droidblue.minmax.totalStates_count
+        print 'depth:  ', droidblue.minmax.depthStates_count
+        print 'leaf:   ', droidblue.minmax.leafStates_count
+        print 'skipped:', droidblue.minmax.skippedStates_count
 
 
 def main(sys_argv=None):

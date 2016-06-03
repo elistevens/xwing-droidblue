@@ -6,21 +6,28 @@ log.setLevel(logging.DEBUG)
 
 from droidblue.core.edge import Edge
 
-from droidblue.core.rules import ActiveAbilityRule
+from droidblue.core.rules import ActiveAbilityRule, default_oppKey
 
 
 class PerformActionRule(ActiveAbilityRule):
     isOncePerRound_bool = True
 
     def __init__(self, state, pilot_id):
-        super(PerformActionRule, self).__init__(state, 'performAction', pilot_id)
+        super(PerformActionRule, self).__init__(state, 'doPerformAction', pilot_id)
 
-    def getOpportunityKey(self, state):
-        opportunity_key = (self,)
-        # if not self.isOncePerRound_bool:
-        #     opportunity_key += state.getOpportunityStepKey()
+    def getOpportunityKeys(self, state):
+        oncePerRound_key = default_oppKey._replace(
+            rule=type(self).__name__,
+            pilot_id=self.pilot_id,
+            upgrade_id=self.upgrade_id if self.upgrade_id is not None else 9999)
 
-        return [opportunity_key, ('performAction', self.pilot_id) + state.getOpportunityStepKey()]
+        thisOpportunity_key = default_oppKey._replace(
+            rule='PerformActionRule',
+            pilot_id=self.pilot_id)
+        thisOpportunity_key = thisOpportunity_key._replace(**state.getStepOpportunityKeys())
+
+        return [oncePerRound_key, thisOpportunity_key]
+
 
 class StressPreventsPerformActionRule(ActiveAbilityRule):
     def __init__(self, state, pilot_id):
