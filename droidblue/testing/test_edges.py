@@ -17,6 +17,7 @@ import droidblue.defaults.choose as choose
 from droidblue.defaults.maneuvers import SetDialRule
 from droidblue.core.steps import steps_round
 from droidblue.core.rules import default_oppKey
+from droidblue.core.edge import Edge
 
 def test_PerformFocusActionEdge_impl(single_state):
     assert single_state.getStat(0, 'focus') == 0
@@ -66,7 +67,7 @@ def randomWalkUntil(state, step):
         else:
             log.info("Step: {}".format(state.step))
 
-        edge_list = state.getEdges(fastforward_bool=False)
+        edge_list, activePlayer_id = state.getEdges(fastforward_bool=False)
 
         for ff_edge in state.fastforward_list:
             log.info("FF: {}".format(ff_edge))
@@ -77,6 +78,7 @@ def randomWalkUntil(state, step):
 
         if edge_list:
             random_edge = random.choice(edge_list)
+            assert isinstance(random_edge, Edge)
             log.info("Rnd: {} {}".format(random_edge, len(edge_list)))
 
             state = random_edge.getExactState(state)
@@ -90,7 +92,7 @@ def test_SetDialEdge_PerformManeuverEdge(single_state):
     state.pushSteps(steps_round(dials=True))
     state = randomWalkUntil(state, 'setDial')
 
-    edge_list = state.getEdges(fastforward_bool=False)
+    edge_list, activePlayer_id = state.getEdges(fastforward_bool=False)
     for edge in edge_list:
         if edge.color_int == SetDialRule.white:
             state = edge.getExactState(state)
@@ -98,7 +100,7 @@ def test_SetDialEdge_PerformManeuverEdge(single_state):
 
     state = randomWalkUntil(state, 'doPerformManeuver')
 
-    state.getEdges(fastforward_bool=False)
+    edge_list, activePlayer_id = state.getEdges(fastforward_bool=False)
 
     assert len(edge_list) == 1
 
@@ -109,7 +111,7 @@ def test_SetDialEdge_PerformManeuverEdge_vs(vs_state):
     state.pushSteps(steps_round(dials=True))
     state = randomWalkUntil(state, 'setDial')
 
-    edge_list = state.getEdges(fastforward_bool=False)
+    edge_list, activePlayer_id = state.getEdges(fastforward_bool=False)
     for edge in edge_list:
         if edge.color_int == SetDialRule.white:
             state = edge.getExactState(state)
@@ -117,7 +119,7 @@ def test_SetDialEdge_PerformManeuverEdge_vs(vs_state):
 
     state = randomWalkUntil(state, 'doPerformManeuver')
 
-    state.getEdges(fastforward_bool=False)
+    edge_list, activePlayer_id = state.getEdges(fastforward_bool=False)
 
     assert len(edge_list) == 1
 

@@ -17,6 +17,7 @@ class Edge(object):
     priority = 50
     usesSlop_bool = False
     mandatory_bool = False
+    mandatoryIf_str = None
 
     def __init__(self, active_id, opportunity_list=None):
         assert isinstance(opportunity_list, (list, type(None))), repr(opportunity_list)
@@ -44,6 +45,16 @@ class Edge(object):
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
+
+    def isMandatory(self, state):
+        if self.mandatory_bool:
+            return True
+
+        if self.mandatoryIf_str and state.getStat(self.active_id, self.mandatoryIf_str):
+            return True
+
+        return False
+
 
 
     def computeLookaheadScore(self, score_cls, parent, slop, depth):

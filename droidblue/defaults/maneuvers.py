@@ -146,8 +146,6 @@ class RevealDialEdge(Edge):
 
 
 class PerformManeuverRule(ActiveAbilityRule):
-    mandatory_bool = True
-
     def __init__(self, state, pilot_id):
         super(PerformManeuverRule, self).__init__(state, 'doPerformManeuver', pilot_id)
 

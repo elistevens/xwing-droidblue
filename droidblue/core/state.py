@@ -161,11 +161,12 @@ class ConstantState(StateBase):
         'ionizedAt_count',
         'upgrade_count',
         'upgrade_offset',
+        'simplifyForTraining'
     ]
     stat_set = set(stat_list)
     statIndex_dict = {k: i for i, k in enumerate(stat_list)}
 
-    def __init__(self, squads_list):
+    def __init__(self, squads_list, simplifyForTraining_bool=False):
         # Register ID in global cache
         self.const_id = str(uuid.uuid4()) # FIXME: make this something similar, but easier to read
         self.id2obj_dict[self.const_id] = self
@@ -187,6 +188,7 @@ class ConstantState(StateBase):
             for pilot_json in squad_json['pilots']:
                 self._setRawStat(pilot_id, 'player_id', player_id)
                 self._setRawStat(pilot_id, 'upgrade_offset', self.upgrade_count)
+                self._setRawStat(pilot_id, 'simplifyForTraining', simplifyForTraining_bool)
                 self.upgrade_count += Pilot.initRules(self, pilot_id, self.upgrade_count, squad_json['faction'], pilot_json)
 
                 self.ship_list.append(pilot_json['ship'])
@@ -424,7 +426,7 @@ class BoardState(StateBase):
                 edge_list = [edge for edge in edge_list if self.getStat(edge.active_id, 'player_id') == activePlayer_id]
 
                 # Provide option to pass
-                if edge_list and not any(edge.mandatory_bool for edge in edge_list):
+                if edge_list and not any(edge.isMandatory(self) for edge in edge_list):
 
                     passOpportunity_key = Rule.getPassOpportunityKey(self, activePlayer_id)
                     edge_list.append(ChoosePassEdge(activePilot_id, [passOpportunity_key]))

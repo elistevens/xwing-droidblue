@@ -57,7 +57,7 @@ class AttackPrimaryTurretRule(AttackRule):
 
 class AttackPrimaryEdge(Edge):
     # FIXME: not actually mandatory, but helps for simulation
-    mandatory_bool = True
+    mandatoryIf_str = 'simplifyForTraining'
 
     def __init__(self, active_id, target_id, range_int):
         super(AttackPrimaryEdge, self).__init__(active_id)
@@ -96,7 +96,10 @@ class SpendFocusTokenToModifyAttackDiceRule(ActiveAbilityRule):
 
     def _getEdges(self, state):
         if state.getToken(self.pilot_id, 'focus'):
-            return [SpendFocusTokenToModifyAttackDiceEdge(self.pilot_id)]
+            if state.getStat(self.pilot_id, 'rolled_f') \
+                    or state.getStat(self.pilot_id, 'rerolled_f') \
+                    or state.getStat(self.pilot_id, 'focusShenanigans'):
+                return [SpendFocusTokenToModifyAttackDiceEdge(self.pilot_id)]
 
 class SpendFocusTokenToModifyAttackDiceEdge(SpendFocusTokenEdge):
     def transitionImpl(self, state):
@@ -112,7 +115,10 @@ class SpendFocusTokenToModifyDefenseDiceRule(TargetAbilityRule):
 
     def _getEdges(self, state):
         if state.getToken(self.pilot_id, 'focus'):
-            return [SpendFocusTokenToModifyDefenseDiceEdge(self.pilot_id)]
+            if state.getStat(self.pilot_id, 'rolled_f') \
+                    or state.getStat(self.pilot_id, 'rerolled_f') \
+                    or state.getStat(self.pilot_id, 'focusShenanigans'):
+                return [SpendFocusTokenToModifyDefenseDiceEdge(self.pilot_id)]
 
 class SpendFocusTokenToModifyDefenseDiceEdge(SpendFocusTokenEdge):
     def transitionImpl(self, state):

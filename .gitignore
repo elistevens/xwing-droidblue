@@ -31,6 +31,7 @@ dist
 junk
 *.delme
 \#*.*
+scratch
 
 # Temporary, externally sourced
 couchable

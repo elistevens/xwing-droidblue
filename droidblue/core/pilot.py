@@ -116,12 +116,10 @@ class Pilot(Base):
 
         # Can't fold in the upgrade rules to the above, since we need to check
         # the cards for discard, etc.
-        upgrade_count = 0
+        # We need one "upgrade" to represent the pilot card, for things
+        # like "no more pilot ability" crits and once-per-game effects.
+        upgrade_count = 1
         for slot_str, upgrade_list in pilot_json.get('upgrades', {}).iteritems():
-            # We need one "upgrade" to represent the pilot card, for things
-            # like "no more pilot ability" crits and once-per-game effects.
-            upgrade_count += 1
-
             for upgrade_str in upgrade_list:
                 module_str = 'droidblue.upgrade.{}.{}'.format(slot_str, upgrade_str)
 

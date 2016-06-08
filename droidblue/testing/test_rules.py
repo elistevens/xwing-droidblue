@@ -14,7 +14,7 @@ def test_doPerformAction(single_state):
 
     state.pushSteps(['doPerformAction'], active_id=0)
 
-    edge_list = state.getEdges()
+    edge_list, activePlayer_id = state.getEdges()
 
     assert edge_list
 
@@ -29,7 +29,8 @@ def test_doPerformAction(single_state):
 
     assert state.opportunity_set != new_state.opportunity_set
 
-    assert not new_state.getEdges(fastforward_bool=False)
+    edge_list, activePlayer_id = new_state.getEdges(fastforward_bool=False)
+    assert not edge_list
 
 
 def test_rules(vs_state):
@@ -40,7 +41,7 @@ def test_rules(vs_state):
     print sorted(state.edgeRules_dict.keys())
     print sorted(state.const.edgeRules_dict.keys())
 
-    for step_tup, rule_list in sorted(state.const.edgeRules_dict.iteritems()):
+    for step_tup, (rule_list, _, _) in sorted(state.const.edgeRules_dict.iteritems()):
         print step_tup
         # print '    ', rule_list
 

@@ -61,6 +61,12 @@ class Score(object):
 
 
 class MovDeltaScore(Score):
+    """
+    It computes Margin of Victory as per the tournament rules.
+
+    This score is suitable for use in evaluating a state at the end of the
+    round or end of the game.
+    """
     def computeIndividualScore(self, state, player_id):
         pointsLost_int = 0
         hasUndestroyedPilots_bool = False
@@ -82,6 +88,13 @@ class MovDeltaScore(Score):
         return (100 - pointsLost_int) if hasUndestroyedPilots_bool else 0
 
 class MovAndHpDeltaScore(Score):
+    """
+    It computes MoV plus fractional points per hitpoint, rounded to int on
+    a per-ship basis. This makes the range of points be 0 to 200.
+
+    This score is suitable for use in evaluating a state at the end of the
+    round. It is probably the best method to use mid-game.
+    """
     def computeIndividualScore(self, state, player_id):
         # This copies the above for speed reasons; reuse would result in
         # state.getStat_damage being called twice.
@@ -107,6 +120,15 @@ class MovAndHpDeltaScore(Score):
         return (200 - pointsLost_int) if hasUndestroyedPilots_bool else 0
 
 class TournamentMovDeltaScore(MovDeltaScore):
+    """
+    It computes Margin of Victory as per the tournament rules, plus 1000 times
+    tournament points. This means that from a tie, the expected value of a 50%
+    chance of a 12-point MoV gain will be higher than a 90% chance of an 11
+    point MoV gain.
+
+    This score is suitable for use in evaluating a state at the end of the
+    game.
+    """
     def marginFor(self, player_id):
         delta_score = super(TournamentMovDeltaScore, self).marginFor(player_id)
 
