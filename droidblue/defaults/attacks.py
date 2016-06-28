@@ -6,11 +6,13 @@ log.setLevel(logging.DEBUG)
 
 from droidblue.core.rules import ActiveAbilityRule, ActiveAbilityRule, TargetAbilityRule
 from droidblue.core.pilot import Pilot
-from droidblue.core.edge import Edge, RandomEdge, SpendFocusTokenEdge, SpendEvadeTokenEdge
+from droidblue.core.edge import Edge, RandomDiceEdge, SpendFocusTokenEdge, SpendEvadeTokenEdge
 from droidblue.core.steps import steps_attack
 from droidblue.core.dice import StateBackedAttackDicePool, StateBackedDefenseDicePool
 
 class AttackRule(ActiveAbilityRule):
+    isStatRule_bool = True
+
     def __init__(self, state, pilot_id):
         super(AttackRule, self).__init__(state, 'chooseWeaponAndTarget', pilot_id)
 
@@ -34,16 +36,35 @@ class AttackRule(ActiveAbilityRule):
 class AttackPrimaryForwardRule(AttackRule):
     card_type = 'generic'
     arc_index = Pilot.arcForward_index
+    
+    def getStat_diceFrontArcRange1(self, state, result):
+        return max(result, state.getStat(self.pilot_id, 'atk') + 1)
+    def getStat_diceFrontArcRange2(self, state, result):
+        return max(result, state.getStat(self.pilot_id, 'atk'))
+    def getStat_diceFrontArcRange3(self, state, result):
+        return max(result, state.getStat(self.pilot_id, 'atk'))
 
 class AttackPrimaryAuxBackRule(AttackRule):
     card_type = 'generic'
     arc_index = Pilot.arcBack_index
 
+    def getStat_diceBackArcRange1(self, state, result):
+        return max(result, state.getStat(self.pilot_id, 'atk') + 1)
+    def getStat_diceBackArcRange2(self, state, result):
+        return max(result, state.getStat(self.pilot_id, 'atk'))
+    def getStat_diceBackArcRange3(self, state, result):
+        return max(result, state.getStat(self.pilot_id, 'atk'))
 
 class AttackPrimaryAuxSideRule(AttackRule):
     card_type = 'generic'
     arc_index = Pilot.arcSide_index
 
+    def getStat_diceSideArcRange1(self, state, result):
+        return max(result, state.getStat(self.pilot_id, 'atk') + 1)
+    def getStat_diceSideArcRange2(self, state, result):
+        return max(result, state.getStat(self.pilot_id, 'atk'))
+    def getStat_diceSideArcRange3(self, state, result):
+        return max(result, state.getStat(self.pilot_id, 'atk'))
 
 class AttackTorpedoAuxBackRule(AttackRule):
     card_type = 'generic'
@@ -53,6 +74,13 @@ class AttackTorpedoAuxBackRule(AttackRule):
 class AttackPrimaryTurretRule(AttackRule):
     card_type = 'generic'
     arc_index = Pilot.arcTurret_index
+
+    def getStat_diceTurretArcRange1(self, state, result):
+        return max(result, state.getStat(self.pilot_id, 'atk') + 1)
+    def getStat_diceTurretArcRange2(self, state, result):
+        return max(result, state.getStat(self.pilot_id, 'atk'))
+    def getStat_diceTurretArcRange3(self, state, result):
+        return max(result, state.getStat(self.pilot_id, 'atk'))
 
 
 class AttackPrimaryEdge(Edge):
@@ -165,7 +193,7 @@ class RollAttackRule(ActiveAbilityRule):
 
         return [roll_edge]
 
-class RollAttackEdge(RandomEdge):
+class RollAttackEdge(RandomDiceEdge):
     mandatory_bool = True
 
 class SetRollAttackEdge(Edge):
@@ -195,7 +223,7 @@ class RollDefenseRule(TargetAbilityRule):
 
         return [roll_edge]
 
-class RollDefenseEdge(RandomEdge):
+class RollDefenseEdge(RandomDiceEdge):
     mandatory_bool = True
 
 class SetRollDefenseEdge(Edge):

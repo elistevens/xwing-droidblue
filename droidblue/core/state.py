@@ -106,7 +106,7 @@ class StateBase(object):
     def getStat(self, pilot_id, stat_key):
         result = self._getRawStat(pilot_id, stat_key)
         for rule in self.getStatRules([stat_key]):
-            result = getattr(rule, stat_key, lambda s, r: r)(self, result)
+            result = getattr(rule, 'getStat_' + stat_key, lambda state, result: result)(self, result)
 
         return result
 
@@ -517,6 +517,8 @@ class BoardState(StateBase):
     # Stepper stuff
     def nextRound(self, **kwargs):
         from droidblue.core.steps import steps_round
+        self.step_list = []
+        self.step_index = 0
         self.pushSteps(steps_round(**kwargs))
 
     def pushSteps(self, new_list, active_id=None, target_id=None):

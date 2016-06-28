@@ -173,8 +173,7 @@ class Base(Square):
         return self.corners
 
     def getArcDistances(self, other_base):
-        # front, side, turret, back
-        # Back is last, due to the *= -1
+        # front, side, back, turret
 
         angles = [math.radians(a) for a in [40, 90, 140, 180]]
         arcs = [LONG_RANGE] * 4
@@ -227,29 +226,29 @@ _movementConstants = {
 
 
 def _movementFunction(angle, radius, base_offset):
-    x = radius      - math.cos(angle) * radius + math.sin(angle) * base_offset
-    y = base_offset + math.sin(angle) * radius + math.cos(angle) * base_offset
+    x = base_offset + math.sin(angle) * radius + math.cos(angle) * base_offset
+    y = radius      - math.cos(angle) * radius + math.sin(angle) * base_offset
     return [x, y, angle]
 
 for j, width in enumerate(Base._widths):
     mo = Base._maneuverOffsets_xyr[j]
     for i in ['1', '2', '3']:
-        mo['turnR' + i] = _movementFunction(0.5 * math.pi, _movementConstants['turn'][int(i)], width / 2.0)
-        mo['turnL' + i] = [-mo['turnR' + i][0], mo['turnR' + i][1], -mo['turnR' + i][2]]
+        mo['turnL' + i] = _movementFunction(0.5 * math.pi, _movementConstants['turn'][int(i)], width / 2.0)
+        mo['turnR' + i] = [mo['turnL' + i][0], -mo['turnL' + i][1], -mo['turnL' + i][2]]
 
         # FIXME: need to implement the troll slide forward/back somehow...
-        mo['trollR' + i] = [mo['turnR' + i][0], mo['turnR' + i][1], mo['turnR' + i][2] + math.pi / 2.0]
-        mo['trollL' + i] = [mo['turnL' + i][0], mo['turnL' + i][1], mo['turnL' + i][2] - math.pi / 2.0]
+        mo['trollL' + i] = [mo['turnL' + i][0], mo['turnL' + i][1], mo['turnL' + i][2] + math.pi / 2.0]
+        mo['trollR' + i] = [mo['turnR' + i][0], mo['turnR' + i][1], mo['turnR' + i][2] - math.pi / 2.0]
 
-        mo['bankR' + i] = _movementFunction(0.25 * math.pi, _movementConstants['bank'][int(i)], width / 2.0)
-        mo['bankL' + i] = [-mo['bankR' + i][0], mo['bankR' + i][1], -mo['bankR' + i][2]]
+        mo['bankL' + i] = _movementFunction(0.25 * math.pi, _movementConstants['bank'][int(i)], width / 2.0)
+        mo['bankR' + i] = [mo['bankL' + i][0], -mo['bankL' + i][1], -mo['bankL' + i][2]]
 
-        mo['sloopR' + i] = [mo['bankR' + i][0], mo['bankR' + i][1], mo['bankR' + i][2] + math.pi]
         mo['sloopL' + i] = [mo['bankL' + i][0], mo['bankL' + i][1], mo['bankL' + i][2] + math.pi]
+        mo['sloopR' + i] = [mo['bankR' + i][0], mo['bankR' + i][1], mo['bankR' + i][2] + math.pi]
 
     for i in ['1', '2', '3', '4', '5']:
-        mo['forward' + i] = [0.0, _movementConstants['forward'][int(i)] + width, 0.0]
-        mo['kturn' + i] = [0.0, _movementConstants['forward'][int(i)] + width, math.pi]
+        mo['forward' + i] = [_movementConstants['forward'][int(i)] + width, 0.0, 0.0]
+        mo['kturn' + i] =   [_movementConstants['forward'][int(i)] + width, 0.0, math.pi]
 
     mo['stop'] = [0.0, 0.0, 0.0]
     mo['ionized'] = mo['forward1']

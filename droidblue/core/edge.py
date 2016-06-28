@@ -64,7 +64,7 @@ class Edge(object):
 
         return score_cls(state, slop, depth)
 
-    def getExactState(self, parent, doCopy=True, count=1):
+    def getExactState(self, parent, doCopy=True):
         if doCopy:
             # parent_copy = copy.deepcopy(parent)
             state = parent.clone()
@@ -116,6 +116,11 @@ class RandomEdge(Edge):
                 return subedge.transitionImpl(state)
             weight_sum -= weight
 
+class RandomDialEdge(RandomEdge):
+    pass
+
+class RandomDiceEdge(RandomEdge):
+    pass
 
 class SpendTokenEdge(Edge):
     priority = 70

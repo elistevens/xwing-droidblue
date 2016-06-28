@@ -72,6 +72,8 @@ for raw_dict in raw.pilotData_list:
     except:
         print raw_dict
 
+pilots_max = max(len(s['pilots']) for s in ship_dict.values())
+
 """
     "JumpMaster 5000": {
         "name": "JumpMaster 5000",

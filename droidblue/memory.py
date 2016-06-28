@@ -10,12 +10,9 @@ import sys
 import numpy
 
 # in-house
-import droidblue.alphabeta
 
 from droidblue.core.state import BoardState
 from droidblue.testing.fixtures import chase_state
-from droidblue.alphabeta import findBestScore_minmax, findBestScore_alphabeta
-from droidblue.core.score import MovAndHpDeltaScore
 
 
 # Recursively expand slist's objects

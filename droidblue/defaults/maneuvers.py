@@ -6,7 +6,7 @@ log.setLevel(logging.DEBUG)
 
 import itertools
 
-from droidblue.core.edge import Edge, RandomEdge
+from droidblue.core.edge import Edge, RandomDialEdge
 
 from droidblue.cards.xws import ship_dict
 from droidblue.core.rules import ActiveAbilityRule
@@ -85,12 +85,12 @@ class RevealDialRule(ActiveAbilityRule):
         if not state.getFlag(self.pilot_id, 'dialKnown'):
             player_id = state.getStat(self.pilot_id, 'player_id')
 
-            if state.perspectivePlayer_id in {player_id, None}:
+            if state.perspectivePlayer_id in {player_id, None} and state.maneuver_list[self.pilot_id] is not None:
                 # This means either we know because we set the dial, or because
                 # we're simulating the turn for real.
                 return [RevealDialEdge(self.pilot_id)]
 
-            random_edge = RandomEdge(self.pilot_id)
+            random_edge = RandomDialEdge(self.pilot_id)
 
             ship_str = state.const.ship_list[self.pilot_id]
             for speed_int, color_list in enumerate(ship_dict[canonicalize(ship_str)]['maneuvers']):
@@ -107,9 +107,14 @@ class RevealDialRule(ActiveAbilityRule):
                     else:
                         reveal_edge = RevealDialEdge(self.pilot_id, color_int, type_str, speed_int)
 
-                    weight = state.dialWeight_dict.get((self.pilot_id, reveal_edge.maneuver_str), 1.0)
+                    weight = state.dialWeight_dict.get((self.pilot_id, reveal_edge.maneuver_str), 0.1)
 
-                    if weight > 0.0:
+                    if weight > 0.2 or not state.dialWeight_dict:
+                        # if weight != 1.0:
+                        #     pass
+                        #     # print weight
+                        # elif state.dialWeight_dict:
+                        #     print repr(self.pilot_id), repr(reveal_edge.maneuver_str), sorted(state.dialWeight_dict.keys())
                         random_edge.addOutcome(reveal_edge.maneuver_str, reveal_edge, weight)
 
             return [random_edge]

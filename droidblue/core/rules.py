@@ -45,16 +45,15 @@ class Rule(object):
         # if upgrade_id is not None:
         #     self.opportunity_key += "-{}".format(upgrade_id)
 
-        for key in key_list:
-
-            if self.isStatRule_bool:
-                assert isinstance(key, str)
-                assert key in state.stat_set
+        for attr in dir(self):
+            if attr.startswith('getStat_'):
+                key = attr.split('_', 1)[1]
                 state.addStatRule(self, key)
-            else:
-                assert isinstance(key, RuleKeyTuple)
-                assert key.step in steps_str2id_dict
-                state.addEdgeRule(self, key.step, key.active_id, key.target_id)
+
+        for key in key_list:
+            assert isinstance(key, RuleKeyTuple)
+            assert key.step in steps_str2id_dict
+            state.addEdgeRule(self, key.step, key.active_id, key.target_id)
 
     def __repr__(self):
         extra_str = ', '.join(['{}:{!r}'.format(k, v) for k, v in sorted(self.__dict__.iteritems())])
