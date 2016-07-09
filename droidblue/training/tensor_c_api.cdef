@@ -13,11 +13,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-// TODO(jeff,sanjay): Rename to tensorflow/public/c_api.h
-#ifndef TENSORFLOW_PUBLIC_TENSOR_C_API_H_
-#define TENSORFLOW_PUBLIC_TENSOR_C_API_H_
-
-#include <stddef.h>
+//// TODO(jeff,sanjay): Rename to tensorflow/public/c_api.h
+//#ifndef TENSORFLOW_PUBLIC_TENSOR_C_API_H_
+//#define TENSORFLOW_PUBLIC_TENSOR_C_API_H_
+//
+//#include <stddef.h>
 
 // --------------------------------------------------------------------------
 // C API for TensorFlow.
@@ -62,9 +62,9 @@ limitations under the License.
 //   and the API just provides high level controls over the number of
 //   devices of each type.
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+//#ifdef __cplusplus
+//extern "C" {
+//#endif
 
 // --------------------------------------------------------------------------
 // TF_DataType holds the type for a scalar value.  E.g., one slot in a tensor.
@@ -368,8 +368,8 @@ extern TF_Library* TF_LoadLibrary(const char* library_filename,
 // ops defined in the library.
 extern TF_Buffer TF_GetOpList(TF_Library* lib_handle);
 
-#ifdef __cplusplus
-} /* end extern "C" */
-#endif
-
-#endif  // TENSORFLOW_PUBLIC_TENSOR_C_API_H_
+//#ifdef __cplusplus
+//} /* end extern "C" */
+//#endif
+//
+//#endif  // TENSORFLOW_PUBLIC_TENSOR_C_API_H_

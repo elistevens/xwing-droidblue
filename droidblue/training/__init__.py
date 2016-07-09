@@ -4,5 +4,6 @@ https://medium.com/jim-fleming/loading-tensorflow-graphs-via-host-languages-be10
 https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/public/tensor_c_api.h
 https://cffi.readthedocs.io/en/latest/overview.html
 
+https://www.engadget.com/2016/06/28/combat-ai-beats-air-force-experts/
 
 """
