@@ -9,11 +9,19 @@ log.setLevel(logging.WARNING)
 
 
 import math
+import re
+
 
 class Point(object):
     def __init__(self, x, y):
         self.x = x
         self.y = y
+
+    def __repr__(self):
+        extra_str = ', '.join(['{}:{!r}'.format(k, v) for k, v in sorted(self.__dict__.iteritems())])
+        r = super(Point, self).__repr__()
+        r = re.sub(r'\<droidblue\.([a-z]+\.)+', '<', r)
+        return r.replace('>', ' {}>'.format(extra_str))
 
     def insideCircle(self, c, extra_radius=0.0):
         tr = c.radius + extra_radius
@@ -97,17 +105,17 @@ class Square(Point):
 
     @property
     def corners(self):
-        corners = []
-        for r in [0.25, 0.75, 1.25, 1.75]:
-            radians = self.heading_radians + math.pi * r
+        radians = self.heading_radians + math.pi * 0.25
 
-            sin = math.sin(radians)
-            cos = math.cos(radians)
+        s = math.sin(radians) * self.outer_radius
+        c = math.cos(radians) * self.outer_radius
 
-            x = sin * self.outer_radius + self.x
-            y = cos * self.outer_radius + self.y
-
-            corners.append(Point(x, y))
+        corners = [
+            Point(self.x + c, self.y + s),
+            Point(self.x - s, self.y + c),
+            Point(self.x - c, self.y - s),
+            Point(self.x + s, self.y - c),
+        ]
 
         return corners
 
@@ -159,8 +167,11 @@ class Base(Square):
     arcBack_index = 2
     arcTurret_index = 3
 
-        # self.hasAuxBackArc = args.hasAuxBackArc or False
-        # self.hasAuxWideArc = args.hasAuxWideArc or False
+    arcAngle_list = [
+        # front, side, back, turret
+        [math.radians(a/2) for a in [80.9,  180, 360-80.9,  360]],
+        [math.radians(a/2) for a in [84.05, 180, 360-84.05, 360]],
+    ]
 
     def performManeuver(self, label):
         self.slide(*self._maneuverOffsets_xyr[self.isLarge][label])
@@ -175,7 +186,6 @@ class Base(Square):
     def getArcDistances(self, other_base):
         # front, side, back, turret
 
-        angles = [math.radians(a) for a in [40, 90, 140, 180]]
         arcs = [LONG_RANGE] * 4
 
         for other_p in other_base._getRangeCheckPoints(self):
@@ -195,12 +205,12 @@ class Base(Square):
             assert angle_p >= -math.pi
 
 
-            for i, comparison_angle in enumerate(angles):
+            for i, comparison_angle in enumerate(self.arcAngle_list[bool(self.isLarge)]):
                 # if i == 3:
                 #     angle_min *= -1
                 #     comparison_angle *= -1
 
-                log.debug("{}: {} >= {}, at {}".format(i, math.degrees(comparison_angle), math.degrees(angle_p), distance_p))
+                # log.debug("{}: {} >= {}, at {}".format(i, math.degrees(comparison_angle), math.degrees(angle_p), distance_p))
 
                 if i == self.arcBack_index:
                     if abs(angle_p) >= comparison_angle:
@@ -253,4 +263,4 @@ for j, width in enumerate(Base._widths):
     mo['stop'] = [0.0, 0.0, 0.0]
     mo['ionized'] = mo['forward1']
 
-maneuver_list = list(Base._maneuverOffsets_xyr[0])
+maneuver_list = sorted(Base._maneuverOffsets_xyr[0])

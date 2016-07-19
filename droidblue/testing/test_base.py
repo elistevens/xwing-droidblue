@@ -10,6 +10,50 @@ from droidblue.testing.fixtures import *
 import random
 import numpy as np
 
+def test_corners(vs_state):
+    vs_state.pilots[0]._resetPosition()
+    vs_state.pilots[1]._resetPosition()
+
+    log.info(vs_state.pilots[0].x)
+    log.info(vs_state.pilots[0].y)
+    log.info(vs_state.pilots[0].heading_degrees)
+    log.info(vs_state.pilots[0].corners)
+
+    corner_set = set((int(round(p.x)), int(round(p.y))) for p in vs_state.pilots[0].corners)
+
+    assert corner_set == {(20, 20), (20, -20), (-20, 20), (-20, -20)}
+
+
+    vs_state.pilots[0].heading_radians = math.pi * 0.25
+
+    log.info(vs_state.pilots[0].heading_degrees)
+    log.info(vs_state.pilots[0].corners)
+
+    corner_set = set((int(round(p.x)), int(round(p.y))) for p in vs_state.pilots[0].corners)
+
+    assert corner_set == {(0, 28), (28, 0), (0, -28), (-28, 0)}
+
+
+    vs_state.pilots[0].heading_radians = math.pi * 0.1
+
+    log.info(vs_state.pilots[0].heading_degrees)
+    log.info(vs_state.pilots[0].corners)
+
+    corner_set = set((int(round(p.x)), int(round(p.y))) for p in vs_state.pilots[0].corners)
+
+    assert corner_set == {(13, 25), (-25, 13), (-13, -25), (25, -13)}
+
+
+    vs_state.pilots[0].heading_radians = math.pi * -0.1
+
+    log.info(vs_state.pilots[0].heading_degrees)
+    log.info(vs_state.pilots[0].corners)
+
+    corner_set = set((int(round(p.x)), int(round(p.y))) for p in vs_state.pilots[0].corners)
+
+    assert corner_set == {(25, 13), (13, -25), (-25, -13), (-13, 25)}
+
+
 def test_ranges1(vs_state):
     vs_state.pilots[0]._resetPosition()
     vs_state.pilots[1]._resetPosition()

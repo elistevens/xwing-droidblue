@@ -80,15 +80,19 @@ class StateBase(object):
     def getEdgeRules(self, step, active_id, target_id):
         # Returns all rules, but subclasses are free to filter first
         rule_list = []
-        for step_str in [Rule.wildcard_key, step]:
-            rule_sublist = self.edgeRules_dict.get(step_str, [[], {}, {}])
-            rule_list.extend(rule_sublist[0])
 
-            if active_id is not None:
-                rule_list.extend(rule_sublist[1].get(active_id, []))
+        # This function is a hotspot, and these two ifs are a huge speedup
+        if self.edgeRules_dict:
+            for step_str in [Rule.wildcard_key, step]:
+                if step_str in self.edgeRules_dict:
+                    rule_sublist = self.edgeRules_dict[step_str]
+                    rule_list.extend(rule_sublist[0])
 
-            if target_id is not None:
-                rule_list.extend(rule_sublist[2].get(target_id, []))
+                    if active_id in rule_sublist[1]:
+                        rule_list.extend(rule_sublist[1][active_id])
+
+                    if target_id in rule_sublist[2]:
+                        rule_list.extend(rule_sublist[2][target_id])
 
         return rule_list
 
@@ -328,8 +332,7 @@ class BoardState(StateBase):
         rule_list.extend(self.const.getEdgeRules(step, active_id, target_id))
 
         replaced_set = set(rule.replacesRule_cls for rule in rule_list if rule.replacesRule_cls)
-        rule_list = sorted([rule for rule in rule_list if type(rule) not in replaced_set])
-        rule_list = sorted([rule for rule in rule_list if rule.isAvailable(self)])
+        rule_list = sorted([rule for rule in rule_list if type(rule) not in replaced_set and rule.isAvailable(self)])
 
         return rule_list
 
