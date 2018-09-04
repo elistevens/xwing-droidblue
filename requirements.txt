@@ -1,0 +1,10 @@
+diskcache
+h5py
+jupyter
+matplotlib
+numpy
+pytest
+scipy
+tensorboardX
+tensorflow
+

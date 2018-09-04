@@ -159,8 +159,8 @@ class Square(Point):
 
 class Base(Square):
     isLarge = None
-    _maneuverOffsets_xyr = [{}, {}]
-    _widths = [40.0, 80.0]
+    _maneuverOffsets_xyr = [{}, {}, {}]
+    _widths = [40.0, 60.0, 80.0]
 
     arcForward_index = 0
     arcSide_index = 1
@@ -170,6 +170,7 @@ class Base(Square):
     arcAngle_list = [
         # front, side, back, turret
         [math.radians(a/2) for a in [80.9,  180, 360-80.9,  360]],
+        [math.radians(a/2) for a in [80.9,  180, 360-80.9,  360]], # FIXME
         [math.radians(a/2) for a in [84.05, 180, 360-84.05, 360]],
     ]
 

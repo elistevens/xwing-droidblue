@@ -125,7 +125,7 @@ class SearchPlay(object):
 
         for i in range(5):
             try:
-                self.state.getEdges()
+                self.state.getOutgoingEdges()
             except IndexError:
                 print "Done, but just fastforwarded:"
                 for ff_edge in self.state.fastforward_list:

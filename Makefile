@@ -1,6 +1,16 @@
 .PHONY: all
 all: droidblue/cards/raw.py
 
+venv:
+	python3.6 -m venv venv
+	venv/bin/pip install --upgrade pip
+	venv/bin/pip install -r requirements.txt
+
+
+
+
+
+
 .PHONY: yasb
 yasb:
 	curl -o misc/cards-common.coffee https://raw.githubusercontent.com/geordanr/xwing/master/coffeescripts/cards-common.coffee

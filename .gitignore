@@ -5,6 +5,7 @@
 # python .dll-ish stuff
 *.pyd
 *.pkl
+.pytest_cache
 
 # cython cruft
 *_c.so
@@ -15,6 +16,8 @@
 build
 dist
 *.egg-info
+venv
+.venv
 
 # OSX cruft
 .DS_Store

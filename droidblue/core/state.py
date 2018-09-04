@@ -17,130 +17,12 @@ import uuid
 import numpy as np
 
 from droidblue.core.edge import ChoosePassEdge, RandomEdge
-from droidblue.core.rules import Rule, default_ruleKey
+from droidblue.core.rules import Rule, default_ruleKey, RuleState
 from droidblue.core.dice import StateBackedAttackDicePool, StateBackedDefenseDicePool
 
 StepTuple = collections.namedtuple('StepTuple', ['step', 'count', 'active_id', 'target_id'])
 
-class StateBase(object):
-    stat_list = []
-    stat_set = set(stat_list)
-    statIndex_dict = {}
-
-    def __init__(self, pilot_count):
-        self.edgeRules_dict = {}
-        self.statRules_dict = {}
-
-        if len(self.stat_list):
-            self.stat_array = np.zeros((pilot_count, len(self.stat_list)), np.int8)
-        else:
-            self.stat_array = None
-
-    def __eq__(self, other):
-        if type(self) != type(other):
-            log.debug("type({}) != type({})".format(type(self), type(other)))
-            return False
-
-        if self.__dict__.keys() != other.__dict__.keys():
-            log.debug("keys({}) != keys({})".format(self.__dict__.keys(), other.__dict__.keys()))
-            return False
-
-        for k,v in self.__dict__.iteritems():
-            o = other.__dict__[k]
-            if type(v) != type(o):
-                log.debug("{}: type({}) != type({})".format(k, type(v), type(o)))
-                return False
-
-            if isinstance(v, np.ndarray):
-                if not (v == o).all():
-                    log.debug(v)
-                    log.debug(o)
-                    return False
-            else:
-                if v != o:
-                    log.debug("{}: {} != {}".format(k, v, o))
-                    return False
-
-        return True
-
-
-    # Rules
-    def addEdgeRule(self, rule, step, active_id, target_id):
-        rule_sublist = self.edgeRules_dict.setdefault(step, [[], {}, {}])
-
-        if active_id is not None:
-            assert target_id is None
-            rule_sublist[1].setdefault(active_id, []).append(rule)
-        elif target_id is not None:
-            assert active_id is None
-            rule_sublist[2].setdefault(target_id, []).append(rule)
-        else:
-            rule_sublist[0].append(rule)
-
-    def getEdgeRules(self, step, active_id, target_id):
-        # Returns all rules, but subclasses are free to filter first
-        rule_list = []
-
-        # This function is a hotspot, and these two ifs are a huge speedup
-        if self.edgeRules_dict:
-            for step_str in [Rule.wildcard_key, step]:
-                if step_str in self.edgeRules_dict:
-                    rule_sublist = self.edgeRules_dict[step_str]
-                    rule_list.extend(rule_sublist[0])
-
-                    if active_id in rule_sublist[1]:
-                        rule_list.extend(rule_sublist[1][active_id])
-
-                    if target_id in rule_sublist[2]:
-                        rule_list.extend(rule_sublist[2][target_id])
-
-        return rule_list
-
-    def addStatRule(self, rule, stat_key):
-        self.statRules_dict.setdefault(stat_key, []).append(rule)
-
-    def getStatRules(self, key_list):
-        # Returns all rules, but subclasses are free to filter first
-        rule_list = []
-        for stat_key in key_list:
-            rule_list.extend(self.statRules_dict.get(stat_key, []))
-        return rule_list
-
-    # Stats, which includes the raw storage for tokens and flags
-    def getStat(self, pilot_id, stat_key):
-        result = self._getRawStat(pilot_id, stat_key)
-        for rule in self.getStatRules([stat_key]):
-            result = getattr(rule, 'getStat_' + stat_key, lambda state, result: result)(self, result)
-
-        return result
-
-    def _getRawStat(self, pilot_id, stat_key):
-        return int(self.stat_array[pilot_id, self.statIndex_dict[stat_key]])
-
-    def _setRawStat(self, pilot_id, stat_key, value):
-        # log.info(self.statIndex_dict)
-        self.stat_array[pilot_id, self.statIndex_dict[stat_key]] = value
-
-
-    # Edges
-    def _getEdges(self, step, active_id, target_id):
-        rule_list = self.getEdgeRules(step, active_id, target_id)
-        edge_list = []
-        for rule in rule_list:
-            edge_list.extend(rule.getEdges(self))
-            # log.debug("{}: {}".format(rule, edge_list))
-
-        # Has to be a separate loop from the above so that filtering can see
-        # the full edge set, not just the incremental results.
-        for rule in rule_list:
-            edge_list = rule.filterEdges(edge_list, self)
-
-        # log.info(edge_list)
-
-        return edge_list
-
-
-class ConstantState(StateBase):
+class ConstantState(RuleState):
     """
     Responsible for global game state (rules for pilots and upgrades, point
     values, etc.). Nothing on this class will change after players select
@@ -205,7 +87,7 @@ class ConstantState(StateBase):
         return self.rule_count
 
 
-class BoardState(StateBase):
+class BoardState(RuleState):
     """
     Responsible for the state of the board as play progresses.
 
@@ -405,7 +287,7 @@ class BoardState(StateBase):
 
 
     # Edges
-    def getEdges(self, fastforward_bool=True):
+    def getOutgoingEdges(self, fastforward_bool=True):
         edge_list = []
         activePlayer_id = None
 
