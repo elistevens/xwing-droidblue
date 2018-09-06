@@ -105,13 +105,14 @@ class FancyRepr(object):
         global _fancyRepr_depth
 
         r = super().__repr__()
-        r = re.sub(r'\<droidblue\.([a-z]+\.)+', '<', r)
+        r = re.sub(r'\<([a-z_]+\.)+', '<', r)
+        r = r.replace(' object at', '')
 
         _fancyRepr_depth += 1
         try:
             if _fancyRepr_depth < 2:
                 attr_list = sorted(self.__dict__.items())
-                join_str = ', ' if len(attr_list) < 3 else ('\n' + '    ' * _fancyRepr_depth)
+                join_str = ', ' if len(attr_list) < 30 else ('\n' + '    ' * _fancyRepr_depth)
                 extra_str = join_str.join(['{}:{!r}'.format(k, v) for k, v in attr_list if not self._repr_keys or k in self._repr_keys])
                 r = r.replace('>', join_str + '{}>'.format(extra_str))
         finally:
