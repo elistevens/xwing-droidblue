@@ -16,6 +16,7 @@ log.setLevel(logging.DEBUG)
 
 
 PlayerId = NewType('PlayerId', int)
+PilotId = NewType('PilotId', int)
 
 
 class EdgeAbc(Jsonable, FancyRepr):

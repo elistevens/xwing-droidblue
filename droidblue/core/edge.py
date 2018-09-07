@@ -8,9 +8,11 @@ log.setLevel(logging.DEBUG)
 __author__ = 'elis'
 
 import copy
-import cPickle
+import pickle
 import random
 import re
+
+from .node import PilotId
 
 
 class Edge(object):
@@ -126,7 +128,7 @@ class SpendTokenEdge(Edge):
     priority = 70
     token_str = None
 
-    def __init__(self, active_id, token_id=None):
+    def __init__(self, active_id: PilotId, token_id=None):
         super(SpendTokenEdge, self).__init__(active_id)
         self.token_id = token_id if token_id is not None else active_id
 

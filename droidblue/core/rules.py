@@ -4,9 +4,11 @@ import collections
 import functools
 import re
 
+from typing import NewType, Optional, Dict, List, Tuple
+
 import numpy as np
 
-from .abc import StateAbc
+from .node import StateAbc, PilotId
 
 from ..logging_config import logging
 log = logging.getLogger(__name__)
@@ -35,7 +37,7 @@ class Rule(object):
     isOncePerRound_bool = False
 
 
-    def __init__(self, state, key_list, pilot_id, upgrade_id=None):
+    def __init__(self, state: 'RuleState', key_list: List[RuleKeyTuple], pilot_id, upgrade_id=None):
         # from droidblue.core.steps import steps_str2id_dict
 
         assert isinstance(key_list, list)
@@ -61,7 +63,7 @@ class Rule(object):
             state.addEdgeRule(self, key.step, key.active_id, key.target_id)
 
     def __repr__(self):
-        extra_str = ', '.join(['{}:{!r}'.format(k, v) for k, v in sorted(self.__dict__.iteritems())])
+        extra_str = ', '.join(['{}:{!r}'.format(k, v) for k, v in sorted(self.__dict__.items())])
         r = super(Rule, self).__repr__()
         r = re.sub(r'\<droidblue\.([a-z]+\.)+', '<', r)
         return r.replace('>', ' {}>'.format(extra_str))
@@ -76,16 +78,16 @@ class Rule(object):
             return True
 
     def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+        return type(self) == type(other) and self.__dict__ == other.__dict__
 
     # @property
     # def opportunity_list(self):
     #     return ('rule', self.pilot_id, type(self))
 
-    def isAvailable(self, state):
+    def isAvailable(self, state: 'RuleState'):
         return True
 
-    def getOpportunityKeys(self, state):
+    def getOpportunityKeys(self, state: 'RuleState'):
         opportunity_key = default_oppKey._replace(
             rule=type(self).__name__,
             pilot_id=self.pilot_id,
@@ -97,7 +99,7 @@ class Rule(object):
         return [opportunity_key]
 
     @classmethod
-    def getPassOpportunityKey(cls, state, player_id):
+    def getPassOpportunityKey(cls, state: 'RuleState', player_id):
         opportunity_dict = {
             'step': None,
             'count': 9999,
@@ -110,7 +112,7 @@ class Rule(object):
         return OpportunityTuple(**opportunity_dict)
 
 
-    def getEdges(self, state):
+    def getEdges(self, state: 'RuleState'):
         if self.isOncePerGame_bool and state.getUpgradeStat(self.pilot_id, self.upgrade_id, 'token') == 0:
             return []
 
@@ -138,10 +140,10 @@ class Rule(object):
 
         return edge_list
 
-    def _getEdges(self, state):
+    def _getEdges(self, state: 'RuleState'):
         return []
 
-    def filterEdges(self, edge_list, state):
+    def filterEdges(self, edge_list, state: 'RuleState'):
         filtered_list = []
         for edge in edge_list:
             if self.filterEdge(edge, state):
@@ -169,13 +171,13 @@ def _str2tup(item):
     raise TypeError(str(type(item)))
 
 class ActiveAbilityRule(Rule):
-    def __init__(self, state, key_list, pilot_id, upgrade_id=None):
+    def __init__(self, state: 'RuleState', key_list, pilot_id, upgrade_id=None):
         key_list = [default_ruleKey._replace(step=key_str, active_id=pilot_id) for key_str in _str2list(key_list)]
         super(ActiveAbilityRule, self).__init__(state, key_list, pilot_id, upgrade_id=None)
 
 
 class TargetAbilityRule(Rule):
-    def __init__(self, state, key_list, pilot_id, upgrade_id=None):
+    def __init__(self, state: 'RuleState', key_list, pilot_id, upgrade_id=None):
         key_list = [default_ruleKey._replace(step=key_str, target_id=pilot_id) for key_str in _str2list(key_list)]
         super(TargetAbilityRule, self).__init__(state, key_list, pilot_id, upgrade_id=None)
 
@@ -183,12 +185,14 @@ class TargetAbilityRule(Rule):
 
 
 class RuleState(StateAbc):
+    cloneKeep_set = set('constant_info')
+
     stat_list = []
     stat_set = set(stat_list)
     statIndex_dict = {}
 
-    def __init__(self, constant_info, readonly, pilot_count):
-        super().__init__(constant_info, readonly)
+    def __init__(self, constant_info: 'RuleState', readonly, pilot_count):
+        super().__init__(readonly=readonly)
 
         self.edgeRules_dict = {}
         self.statRules_dict = {}
@@ -199,7 +203,7 @@ class RuleState(StateAbc):
             self.stat_array = None
 
     # Rules
-    def addEdgeRule(self, rule, step, active_id, target_id):
+    def addEdgeRule(self, rule: Rule, step: tuple, active_id: Optional[PilotId], target_id: Optional[PilotId]):
         rule_sublist = self.edgeRules_dict.setdefault(step, [[], {}, {}])
 
         if active_id is not None:
@@ -211,7 +215,7 @@ class RuleState(StateAbc):
         else:
             rule_sublist[0].append(rule)
 
-    def getEdgeRules(self, step, active_id, target_id):
+    def getEdgeRules(self, step, active_id: PilotId, target_id: PilotId):
         # Returns all rules, but subclasses are free to filter first
         rule_list = []
 
@@ -241,23 +245,23 @@ class RuleState(StateAbc):
         return rule_list
 
     # Stats, which includes the raw storage for tokens and flags
-    def getStat(self, pilot_id, stat_key):
+    def getStat(self, pilot_id: PilotId, stat_key):
         result = self._getRawStat(pilot_id, stat_key)
         for rule in self.getStatRules([stat_key]):
             result = getattr(rule, 'getStat_' + stat_key, lambda state, result: result)(self, result)
 
         return result
 
-    def _getRawStat(self, pilot_id, stat_key):
+    def _getRawStat(self, pilot_id: PilotId, stat_key):
         return int(self.stat_array[pilot_id, self.statIndex_dict[stat_key]])
 
-    def _setRawStat(self, pilot_id, stat_key, value):
+    def _setRawStat(self, pilot_id: PilotId, stat_key, value):
         # log.info(self.statIndex_dict)
-        self.stat_array[pilot_id, self.statIndex_dict[stat_key]] = value
+        self.stat_array[pilot_id: PilotId, self.statIndex_dict[stat_key]] = value
 
 
     # Edges
-    def _getEdges(self, step, active_id, target_id):
+    def _getEdges(self, step, active_id: PilotId, target_id: PilotId):
         rule_list = self.getEdgeRules(step, active_id, target_id)
         edge_list = []
         for rule in rule_list:
