@@ -9,25 +9,22 @@ def steps_setup():
     yield 'placeShips'
 
 
-def steps_round(dials=True, activation=True, combat=True, endphase=True):
-    if dials:
-        yield 'doChooseDials'
+def steps_round(planning=True, activation=True, engagement=True, endphase=True):
+    if planning:
+        for beforeAfter in _steps_beforeAfter():
+            yield beforeAfter + 'PlanningPhase'
 
     if activation:
         for beforeAfter in _steps_beforeAfter(decloak=True):
-            yield beforeAfter + 'ChooseActivation'
+            yield beforeAfter + 'ActivationPhase'
 
-    if combat:
+    if engagement:
         for beforeAfter in _steps_beforeAfter():
-            yield beforeAfter + 'ChooseCombat'
+            yield beforeAfter + 'EngagementPhase'
 
     if endphase:
         for beforeAfter in _steps_beforeAfter():
-            yield beforeAfter + 'ChooseEndphase'
-
-
-def steps_dials():
-    yield 'setDial'
+            yield beforeAfter + 'EndPhase'
 
 def steps_activation(isIonized=False):
     if not isIonized:
@@ -44,26 +41,35 @@ def steps_activation(isIonized=False):
         yield beforeAfter + 'PerformAction'
 
 
-def steps_combat():
-    yield 'chooseWeaponAndTarget'
-
 def steps_attack():
-    yield 'gatherAttackDice'
-    for beforeAfter in _steps_beforeAfter():
-        yield beforeAfter + 'RollAttack'
+    substep_list = [
+        # 'MeasureRange',
+        'ChooseWeapon',
+        'DeclareDefender',
+        'PayCosts',
 
-    yield 'defenderModifyAttack'
-    yield 'attackerModifyAttack'
+        'RollAttackDice',
+        'DefenderModifiesAttack',
+        'AttackerModifiesAttack',
 
-    yield 'gatherDefenseDice'
-    for beforeAfter in _steps_beforeAfter():
-        yield beforeAfter + 'RollDefense'
+        'RollDefenseDice',
+        'AttackerModifiesDefense',
+        'DefenderModifiesDefense',
 
-    yield 'attackerModifyDefense'
-    yield 'defenderModifyDefense'
+        'CancelHits',
+        'CancelCrits',
+        'DetermineWetherAttackHits',
 
-    for beforeAfter in _steps_beforeAfter():
-        yield beforeAfter + 'CompareResults'
+        'SufferHits',
+        'SufferCrits',
+
+        'ResolveAfterDefending',
+        'ResolveAfterAttacking',
+        'PerformBonusAttack',
+    ]
+    for substep_str in substep_list:
+        for beforeAfter in _steps_beforeAfter():
+            yield beforeAfter + substep_str
 
 
 def steps_endphase():
@@ -81,7 +87,7 @@ steps_str2id_dict = {}
 steps_str2id_dict[None] = 9999
 steps_str2id_dict['*'] = len(steps_str2id_dict)
 
-for _step_gen in [steps_setup(), steps_round(True), steps_dials(), steps_activation(), steps_combat(), steps_attack(), steps_endphase()]:
+for _step_gen in [steps_setup(), steps_round(True), steps_activation(), steps_attack(), steps_attack(), steps_endphase()]:
     for _step_str in _step_gen:
         steps_str2id_dict[_step_str] = len(steps_str2id_dict)
 
