@@ -148,6 +148,10 @@ class GuessTwoDiceState(StateAbc, FancyRepr):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+        # rolled?
+        # die value
+        # guess value
+        # revealed?
         self.r1: bool = False
         self.d1: int = None
         self.g1: int = None

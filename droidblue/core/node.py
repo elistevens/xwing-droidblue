@@ -379,7 +379,12 @@ class MctsNode(Jsonable, FancyRepr):
         if ai.mctsPlayout_shouldExpandChildren(self):
             # Expansion of this node into all child nodes
             self.mctsChild_list = [
-                self.fromPreviousState(self.state, edge, mctsPlayer_id=self.mctsPlayer_id, mctsPlayer_ai=ai)
+                self.fromPreviousState(
+                    self.state,
+                    edge,
+                    mctsPlayer_id=self.mctsPlayer_id,
+                    mctsPlayer_ai=ai,
+                )
                 for edge in self.outgoingEdges
             ]
 
@@ -445,12 +450,24 @@ class MctsNode(Jsonable, FancyRepr):
                         minimax_scores[i] += child_scores[i] * child_node.incomingEdges[0].random_wt / random_sum
 
             else:
+                # Each player will pick the state where they win by the most
                 player_id = self.state.activePlayer_id
                 minimax_scores = self.mctsChild_list[0].mctsMinimax_scores
+                mRival_id = max([(score, i)
+                                for i, score in enumerate(minimax_scores)
+                                if i != player_id ])[1]
+                mRival_delta = minimax_scores[player_id] - minimax_scores[mRival_id]
                 for child_node in self.mctsChild_list:
                     child_scores = child_node.mctsMinimax_scores
-                    if child_scores[player_id] > minimax_scores[player_id]:
+
+                    cRival_id = max([(score, i)
+                                    for i, score in enumerate(child_scores)
+                                    if i != player_id ])[1]
+                    cRival_delta = child_scores[player_id] - child_scores[cRival_id]
+
+                    if cRival_delta > mRival_delta:
                         minimax_scores = child_scores
+                        mRival_delta = cRival_delta
 
             self.mctsMinimax_scores = list(minimax_scores)
         else:
