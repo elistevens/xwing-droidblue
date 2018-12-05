@@ -31,3 +31,20 @@ class Rule
 class Ability
 
 """
+
+class Trigger(object):
+    pass
+
+class StepTrigger(Trigger):
+    pass
+class EventTrigger(Trigger):
+    pass
+class ReplacementTrigger(Trigger):
+    pass
+
+class GameEffect(object):
+    pass
+
+class Ability(GameEffect):
+    def replaceGameEffect(self, state):
+        pass

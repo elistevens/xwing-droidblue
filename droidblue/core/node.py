@@ -30,9 +30,26 @@ class EdgeAbc(Jsonable, FancyRepr):
         raise NotImplementedError()
 
     def getHiddenKey(self) -> str:
+        """
+        The hidden key for an edge is a token that ties the act of creating
+        hidden information in the game state with the edge that will reveal
+        that hidden information. This is needed because MCTS playouts can't
+        actually know the hidden information, and so when the information is
+        supposed to be revealed, it needs to be replaced with a random choice
+        from the things that would make sense.
+
+        Of course, "make sense" is easier said than done.
+
+        :return:
+        """
         return ''
 
     def getRevealKey(self) -> str:
+        """
+        See getHiddenKey.
+
+        :return:
+        """
         return ''
     
     def mctsChildKey(self):
@@ -140,8 +157,10 @@ class AiAbc(object):
         if edges and state.isMasked:
             hidden_list = [e.getHiddenKey() for e in edges]
             reveal_list = [e.getRevealKey() for e in edges]
-            assert any(hidden_list) == all(hidden_list), repr(hidden_list)
-            assert any(reveal_list) == all(reveal_list), repr(reveal_list)
+            assert len(set(hidden_list)) == 1, repr(hidden_list)
+            assert len(set(reveal_list)) == 1, repr(reveal_list)
+            # assert any(hidden_list) == all(hidden_list), repr(hidden_list)
+            # assert any(reveal_list) == all(reveal_list), repr(reveal_list)
 
             # log.debug([hidden_list, reveal_list, edges])
 
@@ -304,16 +323,16 @@ class MctsNode(Jsonable, FancyRepr):
 
         if mctsPlayer_ai:
             mctsPredicted_scores = mctsPlayer_ai.mctsPlayout_predictScores(state)
-            mctsCurrent_scores = mctsPlayer_ai.getScores(state)
+            # mctsCurrent_scores = mctsPlayer_ai.getScores(state)
         else:
             mctsPredicted_scores = None
-            mctsCurrent_scores = None
+            # mctsCurrent_scores = None
 
         return cls(
             incomingEdges, state, outgoingEdges,
             mctsPlayer_id=mctsPlayer_id,
             mctsPredicted_scores=mctsPredicted_scores,
-            mctsCurrent_scores=mctsCurrent_scores,
+            # mctsCurrent_scores=mctsCurrent_scores,
         )
 
     def __init__(
@@ -326,7 +345,7 @@ class MctsNode(Jsonable, FancyRepr):
             mctsChild_list: List['MctsNode'] = None,
             mctsPlays_count: int = 0,
 
-            mctsCurrent_scores: List[float] = None,
+            # mctsCurrent_scores: List[float] = None,
             mctsSimulation_scores: List[float] = None,
             mctsMinimax_scores: List[float] = None,
 
@@ -340,7 +359,7 @@ class MctsNode(Jsonable, FancyRepr):
         self.mctsPlayout_count = mctsPlays_count
 
         self.mctsPredicted_scores = mctsPredicted_scores or [0.0 for _ in range(state.getPlayerCount())]
-        self.mctsCurrent_scores = mctsCurrent_scores or [0.0 for _ in range(state.getPlayerCount())]
+        # self.mctsCurrent_scores = mctsCurrent_scores or [0.0 for _ in range(state.getPlayerCount())]
         self.mctsSimulation_scores = mctsSimulation_scores or [0.0 for _ in range(state.getPlayerCount())]
         self.mctsMinimax_scores = mctsMinimax_scores or [0.0 for _ in range(state.getPlayerCount())]
 
@@ -361,7 +380,7 @@ class MctsNode(Jsonable, FancyRepr):
 
         edge_list = mctsPlayer_ai.mctsPlayout_getOutgoingEdges(mctsMaskedInfo_state)
         mctsPredicted_scores = mctsPlayer_ai.mctsPlayout_predictScores(mctsMaskedInfo_state)
-        mctsCurrent_scores = mctsPlayer_ai.getScores(self.state)
+        # mctsCurrent_scores = mctsPlayer_ai.getScores(self.state)
 
         # log.debug(edge_list)
 
@@ -369,7 +388,7 @@ class MctsNode(Jsonable, FancyRepr):
             None, mctsMaskedInfo_state, edge_list,
             mctsPlayer_id=mctsPlayer_id,
             mctsPredicted_scores=mctsPredicted_scores,
-            mctsCurrent_scores=mctsCurrent_scores,
+            # mctsCurrent_scores=mctsCurrent_scores,
         )
 
     def mctsPlayout(self, ai):
@@ -441,13 +460,13 @@ class MctsNode(Jsonable, FancyRepr):
 
         if self.mctsChild_list and ai.mctsPlayout_shouldTrustMinimaxScores(self):
             if self.outgoingEdges[0].random_wt:
-                random_sum = sum(child_node.incomingEdges[0].random_wt for child_node in self.mctsChild_list)
+                randomWeight_sum = sum(child_node.incomingEdges[0].random_wt for child_node in self.mctsChild_list)
                 minimax_scores = [0.0 for _ in self.mctsMinimax_scores]
                 for child_node in self.mctsChild_list:
                     child_scores = child_node.mctsMinimax_scores
 
                     for i in range(len(minimax_scores)):
-                        minimax_scores[i] += child_scores[i] * child_node.incomingEdges[0].random_wt / random_sum
+                        minimax_scores[i] += child_scores[i] * child_node.incomingEdges[0].random_wt / randomWeight_sum
 
             else:
                 player_id = self.state.activePlayer_id
@@ -460,6 +479,7 @@ class MctsNode(Jsonable, FancyRepr):
             self.mctsMinimax_scores = list(minimax_scores)
         else:
             self.mctsMinimax_scores = list(self.mctsSimulation_scores)
+
 
     # def mctsSimulationScore(self) -> Optional[List[float]]:
     #     return [s / (self.mctsPlayout_count or 1) for s in self.mctsPlayout_scores]
