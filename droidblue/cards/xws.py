@@ -1,137 +1,145 @@
-import droidblue.cards.raw as raw
-import droidblue.defaults.actions
-import droidblue.defaults.attacks
+import glob
+import json
+import os
 
-# from droidblue.core.base import SmallBase, LargeBase
+from typing import NewType, Optional, Dict, List, Tuple
 
-# subfaction2faction_dict = {
-#     "Rebel Alliance": "Rebel",
-#     "Resistance": "Rebel",
-#     "Galactic Empire": "Imperial",
-#     "First Order": "Imperial",
-#     "Scum and Villainy": "Scum",
-# }
-from droidblue.util import canonicalize
+from droidblue.util import importstr, canonicalize
+from droidblue.core.rules import Rule
 
-attackIcon2rule_dict = {
-    "xwing-miniatures-font-attack-frontback": [droidblue.defaults.attacks.AttackPrimaryAuxBackRule, droidblue.defaults.attacks.AttackPrimaryForwardRule],
-    "xwing-miniatures-font-attack-180": [droidblue.defaults.attacks.AttackPrimaryAuxSideRule],
-    "xwing-miniatures-font-attack-turret": [droidblue.defaults.attacks.AttackPrimaryTurretRule],
-}
-translate_dict = {
-    'attack': 'atk',
-    'agility': 'agi',
-    'shields': 'shield_max',
-    'hull': 'hull_max',
-    'large': 'isLarge',
-}
-
-ship_dict = {}
-for ship_str, raw_dict in raw.shipData_dict.iteritems():
-    if raw_dict.get('huge', False):
-        continue
-
-    rule_list = []
-
-    if 'attack_icon' in raw_dict:
-        rule_list.extend(attackIcon2rule_dict[raw_dict['attack_icon']])
-    else:
-        rule_list.append(droidblue.defaults.attacks.AttackPrimaryForwardRule)
-
-    for action_str in raw_dict['actions']:
-        rule_str = 'Perform{}ActionRule'.format(action_str.title().replace(' ', ''))
-        rule_list.append(getattr(droidblue.defaults.actions, rule_str))
-
-    stat_dict = {translate_dict.get(a, a): raw_dict[a] for a in ['attack', 'agility', 'hull', 'shields']}
-    stat_dict['ionizedAt_count'] = 2 if raw_dict.get('large', False) else 1
-
-    ship_dict[canonicalize(ship_str)] = {
-        # 'base': LargeBase if raw_dict.get('large', False) else SmallBase,
-        'rule_list': rule_list,
-        'stat_dict': stat_dict,
-        'maneuvers': raw_dict['maneuvers'],
-    }
-
-pilot_dict = {}
-for raw_dict in raw.pilotData_list:
-    if 'skip' in raw_dict:
-        continue
-
-    # print raw_dict.keys()
-    pilot_dict[canonicalize(raw_dict['name'])] = {
-        'stats': {'ps': raw_dict['skill']},
-    }
-
+with open(os.path.join(os.path.dirname(__file__), 'onehot.json')) as fp:
     try:
-        ship_dict[canonicalize(raw_dict['ship'])].setdefault('pilots', {})[canonicalize(raw_dict['name'])] = {
-            'stats': {
-                'ps': raw_dict['skill'],
-                'unique': raw_dict.get('unique', False),
-            },
-        }
+        xws2onehot_dict = json.load(fp)
     except:
-        print raw_dict
+        xws2onehot_dict = {'pilot':{}, 'upgrade': {}}
+xws2onehot_dirty_bool = False
 
-pilots_max = max(len(s['pilots']) for s in ship_dict.values())
+from ..logging_config import logging
+log = logging.getLogger(__name__)
+log.setLevel(logging.WARN)
+log.setLevel(logging.INFO)
+# log.setLevel(logging.DEBUG)
 
-"""
-    "JumpMaster 5000": {
-        "name": "JumpMaster 5000",
-        "factions": [
-            "Scum and Villainy"
-        ],
-        "large": true,
-        "attack": 2,
-        "agility": 2,
-        "hull": 5,
-        "shields": 4,
-        "actions": [
-            "Focus",
-            "Target Lock",
-            "Barrel Roll"
-        ],
-        "attack_icon": "xwing-miniatures-font-attack-turret",
-        "maneuvers": [
-            [ 0, 0, 0, 0, 0, 0, 0, 0 ],
-            [ 2, 2, 2, 1, 1, 0, 0, 0 ],
-            [ 2, 2, 2, 1, 1, 0, 1, 3 ],
-            [ 0, 1, 1, 1, 0, 0, 0, 0 ],
-            [ 0, 0, 1, 0, 0, 3, 0, 0 ]
-        ]
-    },
-...
-    {
-        "name": "\"Fel's Wrath\"",
-        "faction": "Galactic Empire",
-        "id": 26,
-        "unique": true,
-        "ship": "TIE Interceptor",
-        "skill": 5,
-        "points": 23,
-        "slots": []
-    },
-
-('aggressor', 6) ['ig88a', 'ig88c', 'ig88b', 'ig88d']
-('tiefighter', 5) ['wingedgundark', 'nightbeast']
-('tiefighter', 6) ['darkcurse', 'backstabber', 'youngster']
-('tiefighter', 7) ['maulermithel', 'scourge']
-('tiefofighter', 7) ['omegaace', 'zetaleader']
-('tieinterceptor', 5) ['felswrath', 'lieutenantlorrir']
-('tieinterceptor', 7) ['turrphennir', 'tetrancowall']
-('xwing', 5) ['biggsdarklighter', 'hobbieklivian']
-('xwing', 8) ['wesjanson', 'lukeskywalker']
-
-('tiedefender', 6) ['glaivesqua', 'colonelvessery']
-('tiefighter', 3) ['obsidiansquadronpilot', 'chaser']
-('tiefighter', 4) ['blacksquadronpilot', 'wampa']
-('tiefofighter', 4) ['epsilonace', 'omegasquadronpilot']
-('tieinterceptor', 6) ['kirkanos', 'royalguardpilot']
+xws2json_dict = {}
 
 
-('firespray31', 5) ['mandalorianmercenary', 'krassistrelix']
-('firespray31', 7) ['kathscarlet', 'kathscarletscum']
-('firespray31', 8) ['bobafett', 'bobafettscum']
-('ywing', 2) ['goldsquadronpilot', 'syndicatethug']
-('ywing', 4) ['graysquadronpilot', 'hiredgun']
 
-"""
+for json_path in glob.glob(os.path.join(os.path.join(os.path.dirname(__file__), 'xwing-data2/data/pilots/*/*.json'))):
+    with open(json_path) as fp:
+        ship_dict = json.load(fp)
+
+    pilot_list = ship_dict.pop('pilots')
+
+    for pilot_dict in pilot_list:
+        combined_dict = {}
+        combined_dict.update(ship_dict)
+        combined_dict.update(pilot_dict) # important this comes last to overwrite stuff
+        pilot_dict['ship_name'] = ship_dict['name']
+        pilot_dict['ship_xws'] = ship_dict['xws']
+
+        assert combined_dict['xws'] not in xws2json_dict, combined_dict['xws']
+        xws2json_dict[combined_dict['xws']] = combined_dict
+
+        if 'ability' in pilot_dict:
+            if pilot_dict['xws'] not in xws2onehot_dict:
+                xws2onehot_dict['pilot'][pilot_dict['xws']] = len(xws2onehot_dict['pilot'])
+                xws2onehot_dirty_bool = True
+
+            import_path = 'droidblue.cards.pilot.{}.{}'.format(
+                ship_dict['xws'].replace('-', '_'),
+                pilot_dict['xws'].replace('-', '_'),
+            )
+            try:
+                importstr(import_path)
+            except ImportError as e:
+                log.debug("Missing pilot: {}".format(import_path))
+
+        if 'shipAbility' in pilot_dict:
+            ability_xws = canonicalize(pilot_dict['shipAbility']['name'].replace('-', ''))
+
+            if ability_xws not in xws2onehot_dict:
+                xws2onehot_dict['pilot'][ability_xws] = len(xws2onehot_dict['pilot'])
+                xws2onehot_dirty_bool = True
+
+            import_path = 'droidblue.cards.pilot.{}.{}'.format(
+                ship_dict['xws'].replace('-', '_'),
+                ability_xws,
+            )
+            try:
+                importstr(import_path)
+            except ImportError as e:
+                log.debug("Missing ship ability: {}".format(import_path))
+
+    # faction_str = ship_dict.pop('faction')
+    #
+    # assert ship_dict['xws'] not in xws2json_dict, ship_dict['xws']
+    # xws2json_dict[ship_dict['xws']] = ship_dict
+
+for json_path in glob.glob(os.path.join(os.path.join(os.path.dirname(__file__), 'xwing-data2/data/upgrades/*.json'))):
+    with open(json_path) as fp:
+        upgrade_list = json.load(fp)
+
+    for upgrade_dict in upgrade_list:
+        xws2json_dict[upgrade_dict['xws']] = upgrade_dict
+
+        if upgrade_dict['xws'] not in xws2onehot_dict:
+            xws2onehot_dict['upgrade'][upgrade_dict['xws']] = len(xws2onehot_dict['upgrade'])
+            xws2onehot_dirty_bool = True
+
+        import_path = 'droidblue.cards.upgrade.{}.{}'.format(
+            canonicalize(upgrade_dict['sides'][0]['type']),
+            upgrade_dict['xws'].replace('-', '_'),
+        )
+        try:
+            importstr(import_path)
+        except ImportError as e:
+            log.debug("Missing upgrade: {}".format(import_path))
+
+if xws2onehot_dirty_bool:
+    with open(os.path.join(os.path.dirname(__file__), 'onehot.json'), 'w') as fp:
+        log.warning("Updating {}, {} pilots, {} upgrades".format(
+            os.path.join(os.path.dirname(__file__), 'onehot.json'),
+            len(xws2onehot_dict['pilot']),
+            len(xws2onehot_dict['upgrade']),
+        ))
+        json.dump(xws2onehot_dict, fp, sort_keys=True, indent=2)
+
+xws2cls_dict: Dict[str, List[type]] = {}
+
+class XwsCard:
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        xws_id = getattr(cls, 'xws_id', cls.__name__.lower())
+        xws2cls_dict.setdefault(xws_id, []).append(cls)
+
+class Pilot:
+    @classmethod
+    def fromXws(cls, pilot_xws: str, upgrade_list: List[str]):
+        pilot_dict = xws2json_dict[pilot_xws]
+
+        rule_list: List[type] = []
+
+        if 'ability' in pilot_dict:
+            if pilot_xws not in xws2cls_dict:
+                log.warning("Skipping pilot ability: {}".format(pilot_xws))
+            else:
+                rule_list.extend(xws2cls_dict[pilot_xws])
+
+        if 'shipAbility' in pilot_dict:
+            shipAbility_xws = canonicalize(pilot_dict['shipAbility']['name'])
+            if shipAbility_xws not in xws2cls_dict:
+                log.warning("Skipping ship ability: {} ({})".format(shipAbility_xws, pilot_dict['ship_name']))
+            else:
+                rule_list.extend(xws2cls_dict[shipAbility_xws])
+
+        for upgrade_xws in upgrade_list:
+            if upgrade_xws not in xws2cls_dict:
+                log.warning("Skipping upgrade: {}".format(upgrade_xws))
+            else:
+                rule_list.extend(xws2cls_dict[upgrade_xws])
+
+        return cls(pilot_dict, rule_list)
+
+    def __init__(self, pilot_dict, rule_list):
+        pass

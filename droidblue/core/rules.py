@@ -185,13 +185,13 @@ class TargetAbilityRule(Rule):
 
 
 class RuleState(StateAbc):
-    cloneKeep_set = set('constant_info')
+    # cloneKeep_set = set('constant_info')
 
     stat_list = []
     stat_set = set(stat_list)
     statIndex_dict = {}
 
-    def __init__(self, constant_info: 'RuleState', readonly, pilot_count):
+    def __init__(self, readonly, pilot_count):
         super().__init__(readonly=readonly)
 
         self.edgeRules_dict = {}

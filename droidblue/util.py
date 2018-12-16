@@ -14,10 +14,10 @@ canonicalizationExceptions_dict = {
 
 
 def canonicalize(name):
-    if name in canonicalizationExceptions_dict:
-        return canonicalizationExceptions_dict[name]
+    # if name in canonicalizationExceptions_dict:
+    #     return canonicalizationExceptions_dict[name]
 
-    return re.sub('[^a-z0-9]', '', name.lower())
+    return re.sub('[^a-z0-9_]', '', name.replace('-', '_').lower())
 
 
 def importstr(module_str, from_=None):

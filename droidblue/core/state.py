@@ -27,6 +27,9 @@ class ConstantState(RuleState):
     Responsible for global game state (rules for pilots and upgrades, point
     values, etc.). Nothing on this class will change after players select
     and/or reveal the lists that they plan on flying.
+
+    Doesn't really count as "State" per se, since it never changes.
+    We just want to reuse the bag-of-rules mechanics from RuleState.
     """
     id2obj_dict = {}
 
@@ -61,13 +64,13 @@ class ConstantState(RuleState):
         self.pilot_count = 0
         self.upgrade_count = 0
         self.rule_count = 0
-        self.ship_list = []
-        self.pilot_list = []
+        # self.ship_list = []
+        # self.pilot_list = []
 
         for player_id, squad_json in enumerate(squads_list):
             self.pilot_count += len(squad_json['pilots'])
 
-        super(ConstantState, self).__init__(self.pilot_count)
+        super().__init__(True, self.pilot_count)
 
         pilot_id = 0
         for player_id, squad_json in enumerate(squads_list):
@@ -77,8 +80,8 @@ class ConstantState(RuleState):
                 self._setRawStat(pilot_id, 'simplifyForTraining', simplifyForTraining_bool)
                 self.upgrade_count += Pilot.initRules(self, pilot_id, self.upgrade_count, squad_json['faction'], pilot_json)
 
-                self.ship_list.append(pilot_json['ship'])
-                self.pilot_list.append(pilot_json['name'])
+                # self.ship_list.append(pilot_json['ship'])
+                # self.pilot_list.append(pilot_json['name'])
 
                 pilot_id += 1
 
@@ -91,7 +94,7 @@ class BoardState(RuleState):
     """
     Responsible for the state of the board as play progresses.
 
-    Gameplay is represented as a DAG with the BoardState instances as nodes,
+    Gameplay is represented as a DAG with the Nodes containing BoardState instances,
     and Edge instances as the edges (shocking). Each edge is capable of
     mutating the parent state into the child state (adding tokens, moving
     ships, etc.).
@@ -103,19 +106,30 @@ class BoardState(RuleState):
         # Note that crit tokens are just a handy reminder of the damage cards,
         # not an actual in-game effect themselves.
         'shield',
-        'focus',
-        'evade',
+        'charge',
+        'force',
         'cloak',
+
+        'focus',
+        'calculate',
+        'evade',
+        'reinforceFront',
+        'reinforceRear',
+
         'stress',
         'ion',
+        'jam',
+        'weaponDisabled',
+        'tractor',
+
     ]
     token_set = set(token_list)
     flag_list = [
-        'dialKnown',
-        'weaponsDisabled',
-        'nextRound:weaponsDisabled',
-        'checkPilotStress:stress',
-        'checkPilotStress:green',
+        'bonusAttacked',
+        'dialRevealed',
+        'nextRound:weaponDisabled',
+        'checkPilotStress:red',
+        'checkPilotStress:blue',
         'isDestroyed',
     ]
     flag_set = set(flag_list)
@@ -147,9 +161,10 @@ class BoardState(RuleState):
     statIndex_dict = {k: i for i, k in enumerate(stat_list)}
 
     upgrade_list = [
-        'isDiscarded',
-        'extraMunitions',
-        'token',
+        'charge',
+        # 'isDiscarded',
+        # 'extraMunitions',
+        # 'token',
     ]
     upgrade_set = set(upgrade_list)
     upgradeIndex_dict = {k: i for i, k in enumerate(upgrade_list)}
@@ -170,7 +185,7 @@ class BoardState(RuleState):
         self.const_id = const_id
         self.perspectivePlayer_id = perspectivePlayer_id
         self.dialWeight_dict = dialWeight_dict or {}
-        super(BoardState, self).__init__(self.const.pilot_count)
+        super().__init__(True, self.const.pilot_count)
 
         self.fastforward_list = []
         self.maneuver_list = [None] * self.const.pilot_count
@@ -178,17 +193,19 @@ class BoardState(RuleState):
 
         hull_max = 1
         for pilot_id in range(self.const.pilot_count):
-            hull_max = max(hull_max, self.getStat(pilot_id, 'hull_max'))
+            # self.getStat(pilot_id, 'hull_max')
             self._setRawStat(pilot_id, 'shield', self.getStat(pilot_id, 'shield_max'))
+            self._setRawStat(pilot_id, 'charge', self.getStat(pilot_id, 'charge_max'))
+            self._setRawStat(pilot_id, 'force', self.getStat(pilot_id, 'force_max'))
             # self.pilots.append(Pilot(self, pilot_id))
 
         self.damage_array = np.zeros((self.const.pilot_count, hull_max), np.int8)
         self.position_array = np.zeros((self.const.pilot_count, 5), np.float32)
         self.upgrade_array = np.zeros((self.const.upgrade_count, 2), np.int8)
 
-        self.step_list = []
-        self.step_index = 0
-        self._step_count = 0
+        # self.step_list = []
+        # self.step_index = 0
+        # self._step_count = 0
 
     def clone(self):
         # other = BoardState(None, clone=self)
