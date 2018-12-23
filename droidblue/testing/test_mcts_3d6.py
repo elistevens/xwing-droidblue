@@ -11,17 +11,18 @@ log.setLevel(logging.DEBUG)
 
 
 class RollDiceEdge(EdgeAbc):
-    def __init__(self, d1: int, d2: int, random_wt: float):
+    def __init__(self, d1: int, d2: int, d3: int, random_wt: float):
         super().__init__(random_wt=random_wt)
         self.d1: int = d1
         self.d2: int = d2
+        self.d3: int = d3
 
         # assert False
 
     def updateState(self, state: StateAbc) -> None:
         setattr(state, 'd1', self.d1)
         setattr(state, 'd2', self.d2)
-        setattr(state, 'eo', not bool((self.d1 + self.d2) % 2))
+        setattr(state, 'd3', self.d3)
 
         # assert False
 
@@ -32,7 +33,7 @@ class RollDiceEdge(EdgeAbc):
         return 'roll'
 
     def mctsChildKey(self):
-        return self.num
+        return (self.d1, self.d2, self.d3)
 
 class GuessNumberEdge(EdgeAbc):
     def __init__(self, guess: int, nth: str):
@@ -104,64 +105,23 @@ class PredictingGuessDiceAi(GuessDiceAi):
         #     return [state.g1]
         return [0.0]
 
-class GuessOneDieState(StateAbc, FancyRepr):
+class Guess3d6State(StateAbc, FancyRepr):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self.r1: bool = False
-        self.d1: int = None
-        self.g1: int = None
-        self.v1: bool = False
-
-    @property
-    def activePlayer_id(self) -> PlayerId:
-        return PlayerId(0)
-
-    def getPlayerCount(self) -> int:
-        return 1
-
-    def maskHiddenInfo(self, player_id: PlayerId) -> 'GuessOneDieState':
-        masked_state = self.clone()
-
-        if not masked_state.v1:
-            masked_state.d1 = 0
-
-        masked_state.isMasked = True
-
-        return masked_state
-
-    def getOutgoingEdges(self) -> List[EdgeAbc]:
-        if not self.r1:
-            edges = []
-            for i in range(1, 7):
-                edges.append(RollDiceEdge(i, '1', random_wt=1))
-            return edges
-
-        if self.g1 is None:
-            return [GuessNumberEdge(i, '1') for i in range(1, 7)]
-
-        if not self.v1:
-            return [RevealDiceEdge('1')]
-
-        return []
-
-class GuessTwoDiceState(StateAbc, FancyRepr):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-        # rolled?
         # die value
-        # guess value
-        # revealed?
-        self.r1: bool = False
         self.d1: int = None
-        self.g1: int = None
-        self.v1: bool = False
-
-        self.r2: bool = False
         self.d2: int = None
-        self.g2: int = None
+        self.d3: int = None
+
+        self.ordered: bool = False
+
+        # reveal, guess
+        self.v1: bool = False
+        self.g1: int = None
         self.v2: bool = False
+        self.g2: int = None
+
 
     @property
     def activePlayer_id(self) -> PlayerId:

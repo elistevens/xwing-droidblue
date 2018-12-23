@@ -99,6 +99,7 @@ class Jsonable(object):
 
 _fancyRepr_depth = 0
 class FancyRepr(object):
+    _repr_max_depth = 2
     _repr_keys = set()
 
     def __repr__(self):

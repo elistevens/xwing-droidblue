@@ -18,13 +18,13 @@ class Pilot(Base):
         self.state = state
         self.pilot_id = pilot_id
 
-    @property
-    def ship_str(self):
-        return self.state.const.ship_list[self.pilot_id]
-
-    @property
-    def pilot_str(self):
-        return self.state.const.pilot_list[self.pilot_id]
+    # @property
+    # def ship_str(self):
+    #     return self.state.const.ship_list[self.pilot_id]
+    #
+    # @property
+    # def pilot_str(self):
+    #     return self.state.const.pilot_list[self.pilot_id]
 
     @property
     def isLarge(self):

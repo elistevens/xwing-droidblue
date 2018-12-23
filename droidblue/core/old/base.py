@@ -1,5 +1,11 @@
 from __future__ import division
 
+from typing import NewType, Optional, Dict, List, Tuple
+
+import numpy as np
+
+from droidblue.util import FancyRepr
+
 # logging
 import logging
 log = logging.getLogger(__name__)
@@ -12,32 +18,12 @@ import math
 import re
 
 
-class Point(object):
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
+class Point(FancyRepr):
+    def __init__(self, x: float, y: float):
+        self.x: float = x
+        self.y: float = y
 
-    def __repr__(self):
-        extra_str = ', '.join(['{}:{!r}'.format(k, v) for k, v in sorted(self.__dict__.iteritems())])
-        r = super(Point, self).__repr__()
-        r = re.sub(r'\<droidblue\.([a-z]+\.)+', '<', r)
-        return r.replace('>', ' {}>'.format(extra_str))
-
-    def insideCircle(self, c, extra_radius=0.0):
-        tr = c.radius + extra_radius
-
-        return tr * tr < self.distanceSq(c.center)
-
-    def insideSquare(self, s):
-        dx = abs(self.x - s.x)
-        dy = abs(self.y - s.y)
-
-        if dx > dy:
-            [dx, dy] = [dy, dx]
-
-        return dx * s.dx + dy * s.dy < 1.0
-
-    def distanceSq(self, p):
+    def distanceSq(self, p: 'Point'):
         dx = self.x - p.x
         dy = self.y - p.y
         return dx * dx + dy * dy
@@ -46,12 +32,17 @@ class Point(object):
         return math.sqrt(self.distanceSq(p))
 
 class Circle(Point):
-    def __init__(self, x, y, radius):
+    def __init__(self, x: float, y: float, radius: float):
         super(Circle, self).__init__(x, y)
         self.radius = radius
 
-    def overlapsCircle(self, c):
-        return self.insideCircle(c, self.radius)
+    def overlapsPoint(self, p: Point, extra_radius=0.0):
+        tr = self.radius + extra_radius
+
+        return tr * tr <= self.distanceSq(p)
+
+    def overlapsCircle(self, c: 'Circle'):
+        return self.overlapsPoint(c, self.radius)
 
     def overlapsSquare(self, s):
         return s.overlapsCircle(self)
@@ -60,23 +51,19 @@ class Circle(Point):
 class Square(Point):
     width = 0.0
 
-    def __init__(self, x=0.0, y=0.0, h=0.0):
+    def __init__(self, x: float = 0.0, y: float = 0.0, h: float = 0.0):
+        self.inner_radius: float = self.width / 2.0
+        self.outer_radius: float = math.sqrt((self.inner_radius ** 2) * 2)
+
+
         super(Square, self).__init__(0.0, 0.0)
 
-        self.heading_radians = 0.0
-        self._changePosition(x, y, h)
+        self.heading_radians: float = 0.0
+        self._changePosition(x, y, h) # this sets dx, dy
 
     @property
     def heading_degrees(self):
         return math.degrees(self.heading_radians)
-
-    @property
-    def inner_radius(self):
-        return self.width / 2.0
-
-    @property
-    def outer_radius(self):
-        return math.sqrt((self.inner_radius ** 2) * 2)
 
     def slide(self, mx, my, mh=0.0):
         s = math.sin(self.heading_radians)
@@ -119,11 +106,30 @@ class Square(Point):
 
         return corners
 
-    def overlapsCircle(self, c):
-        if not self.insideCircle(c, self.outer_radius):
+    def overlapsPoint(self, p: Point):
+        dx = abs(p.x - self.x)
+        dy = abs(p.y - self.y)
+
+        if dx > dy:
+            [dx, dy] = [dy, dx]
+
+        return dx * self.dx + dy * self.dy < 1.0
+
+    def overlapsCircle(self, c: Circle):
+        # Most things are far away
+        if not c.overlapsPoint(self, self.outer_radius):
             return False
-        if self.insideCircle(c, self.inner_radius):
+
+        # Clearly overlaps
+        if c.overlapsPoint(self, self.inner_radius):
             return True
+
+        # Just the corner landed on it
+        for corner in self.corners:
+            if c.overlapsPoint(corner):
+                return True
+
+
         # The r*4 is to short-circuit out when the circle is too big to fit
         # inside the area between the inner circle and the corner point.
         # Doing point-testing on a square is vaguely expensive.
@@ -133,69 +139,73 @@ class Square(Point):
         # r * 4 = 0.82 < 1
         # Since most circles we care about are at most LargeBase.width / 2,
         # this should shortcut out most of the time.
-        if c.radius * 4 < self.width and c.insideSquare(self):
+        if c.radius * 4 < self.width and self.overlapsPoint(c):
             return True
-
-        for corner in self.corners:
-            if corner.insideCircle(c):
-                return True
 
         # FIXME: there can be a slight overlap here, where the circle nips the
         # FIXME: edge, but not enough to hit the corner or the midpoint.
         # FIXME: I don't care enough to fix it right now. Patches welcome!
         return False
 
-    def overlapsSquare(self, s):
+    def overlapsSquare(self, s: 'Square'):
+        if (self.outer_radius + s.outer_radius) ** 2 < self.distanceSq(s):
+            return False
+
         for corner in self.corners:
-            if corner.insideSquare(s):
+            if s.overlapsPoint(corner):
                 return True
         for corner in s.corners:
-            if corner.insideSquare(self):
+            if self.overlapsPoint(corner):
                 return True
 
         return False
 
-
+# def _arcAngles(a):
+#     return [
+#         (-math.radians(a/2), math.radians(a/2))
+#         (-math.radians(90), math.radians(90))
+#         (-math.radians(a/2 + 180), math.radians(a/2 + 180))
+#         ()
+#
+#     ]
 
 class Base(Square):
-    isLarge = None
+    _size = 0
     _maneuverOffsets_xyr = [{}, {}, {}]
     _widths = [40.0, 60.0, 80.0]
-
-    arcForward_index = 0
-    arcSide_index = 1
-    arcBack_index = 2
-    arcTurret_index = 3
-
-    arcAngle_list = [
-        # front, side, back, turret
-        [math.radians(a/2) for a in [80.9,  180, 360-80.9,  360]],
-        [math.radians(a/2) for a in [80.9,  180, 360-80.9,  360]], # FIXME
-        [math.radians(a/2) for a in [84.05, 180, 360-84.05, 360]],
-    ]
+    _angles = [81.24, 82.80, 83.52]
+    
+    arcBullseye_ndx = 0
+    arcFront_ndx = 1
+    arcLeft_ndx = 2
+    arcRight_ndx = 3
+    arcBack_ndx = 4
+    
+    arcWideFront_ndx = 5
+    arcWideBack_ndx = 6
 
     def performManeuver(self, label):
-        self.slide(*self._maneuverOffsets_xyr[self.isLarge][label])
+        self.slide(*self._maneuverOffsets_xyr[self._size][label])
 
 
-    def _getRangeCheckPoints(self, other_base):
-        # FIXME: all sorts of other complicated things go here...
-        # intersection of arc lines
-        # point to parallel side
-        return self.corners
+    # def _getRangeCheckPoints(self, other_base):
+    #     # FIXME: all sorts of other complicated things go here...
+    #     # intersection of arc lines
+    #     # point to parallel side
+    #     return self.corners
 
     def getArcDistances(self, other_base):
         # front, side, back, turret
 
-        arcs = [LONG_RANGE] * 4
+        arc_ary = np.zeros((4, 7), dtype=np.bool)
+        range_ary = np.zeros((4, 2), dtype=np.float32)
 
-        for other_p in other_base._getRangeCheckPoints(self):
+        arc_rad = self._angles[self._size] / 2.
+
+        for i, other_p in enumerate(other_base.corners):
             dx = other_p.x - self.x
             dy = other_p.y - self.y
-
-            # log.info("x:{}, y:{}".format(dx, dy))
-
-            distance_p = min([other_p.distance(this_p) for this_p in self._getRangeCheckPoints(other_base)])
+            
             angle_p = math.atan2(dy, dx) - self.heading_radians
             while angle_p > math.pi:
                 angle_p -= math.pi * 2
@@ -205,29 +215,36 @@ class Base(Square):
             assert angle_p <= math.pi
             assert angle_p >= -math.pi
 
+            if math.fabs(angle_p) <= arc_rad:
+                arc_ary[i, self.arcFront_ndx] = True
+            elif 0 < angle_p < -math.pi + arc_rad:
+                arc_ary[i, self.arcRight_ndx] = True
+            elif 0 < angle_p <  math.pi - arc_rad:
+                arc_ary[i, self.arcLeft_ndx] = True
+            else:
+                arc_ary[i, self.arcBack_ndx] = True
 
-            for i, comparison_angle in enumerate(self.arcAngle_list[bool(self.isLarge)]):
-                # if i == 3:
-                #     angle_min *= -1
-                #     comparison_angle *= -1
+            if math.fabs(angle_p) <= math.pi / 2.:
+                arc_ary[i, self.arcWideFront_ndx] = True
+            else:
+                arc_ary[i, self.arcWideBack_ndx] = True
 
-                # log.debug("{}: {} >= {}, at {}".format(i, math.degrees(comparison_angle), math.degrees(angle_p), distance_p))
+            if dx < 7.5:
+                arc_ary[i, self.arcBullseye_ndx] = True
 
-                if i == self.arcBack_index:
-                    if abs(angle_p) >= comparison_angle:
-                        arcs[i] = min(arcs[i], distance_p)
-                else:
-                    if abs(angle_p) <= comparison_angle:
-                        arcs[i] = min(arcs[i], distance_p)
+            range_ary[i,0] = other_p.distance(self) - self.outer_radius
+            range_ary[i,1] = np.ceil(range_ary[i,0] / 100.)
+            if range_ary[i,1] < 1 and not self.overlapsPoint(other_p):
+                range_ary[i,1] = 1
 
-        return arcs
+        return arc_ary, range_ary
 
     def getArcRanges(self, other_base):
         return [min(4, int(math.ceil(d / 100.0))) for d in self.getArcDistances(other_base)]
 
 
 # http://teamcovenant.com/mu0n/2013/11/28/the-road-to-4-6-0-and-better-firing-arcs/
-LONG_RANGE = 3000
+# LONG_RANGE = 3000
 _movementConstants = {
     'turn':     [0, 35, 63, 90],
     'bank':     [0, 80, 130, 180],
@@ -241,27 +258,73 @@ def _movementFunction(angle, radius, base_offset):
     y = radius      - math.cos(angle) * radius + math.sin(angle) * base_offset
     return [x, y, angle]
 
+
+def _forwardBack(j, mo, key_str):
+    if key_str.startswith('broll') and j > 0:
+        template_offset = _movementConstants['forward'][1] / 2.
+    else:
+        template_offset = 10
+
+    for i in ['1', '2', '3', '4', '5']:
+        if key_str + i not in mo:
+            continue
+
+        angle = mo[key_str + i][2]
+        ox = template_offset * math.cos(angle)
+        oy = template_offset * math.sin(angle)
+
+        mo[key_str + i + 'f'] = [mo[key_str + i][0] + ox, mo[key_str + i][1] + oy, mo[key_str + i][2]]
+        mo[key_str + i + 'b'] = [mo[key_str + i][0] - ox, mo[key_str + i][1] - oy, mo[key_str + i][2]]
+
+
 for j, width in enumerate(Base._widths):
     mo = Base._maneuverOffsets_xyr[j]
     for i in ['1', '2', '3']:
         mo['turnL' + i] = _movementFunction(0.5 * math.pi, _movementConstants['turn'][int(i)], width / 2.0)
         mo['turnR' + i] = [mo['turnL' + i][0], -mo['turnL' + i][1], -mo['turnL' + i][2]]
 
-        # FIXME: need to implement the troll slide forward/back somehow...
+        mo['revturnL' + i] = [-mo['turnL' + i][0], mo['turnL' + i][1], -mo['turnL' + i][2]]
+        mo['revturnR' + i] = [-mo['turnR' + i][0], mo['turnR' + i][1], -mo['turnR' + i][2]]
+
         mo['trollL' + i] = [mo['turnL' + i][0], mo['turnL' + i][1], mo['turnL' + i][2] + math.pi / 2.0]
         mo['trollR' + i] = [mo['turnR' + i][0], mo['turnR' + i][1], mo['turnR' + i][2] - math.pi / 2.0]
+        _forwardBack(j, mo, 'trollL')
+        _forwardBack(j, mo, 'trollR')
 
         mo['bankL' + i] = _movementFunction(0.25 * math.pi, _movementConstants['bank'][int(i)], width / 2.0)
         mo['bankR' + i] = [mo['bankL' + i][0], -mo['bankL' + i][1], -mo['bankL' + i][2]]
-
+        
         mo['sloopL' + i] = [mo['bankL' + i][0], mo['bankL' + i][1], mo['bankL' + i][2] + math.pi]
         mo['sloopR' + i] = [mo['bankR' + i][0], mo['bankR' + i][1], mo['bankR' + i][2] + math.pi]
 
+        mo['revbankL' + i] = [-mo['bankL' + i][0], mo['bankL' + i][1], -mo['bankL' + i][2]]
+        mo['revbankR' + i] = [-mo['bankR' + i][0], mo['bankR' + i][1], -mo['bankR' + i][2]]
+
+        mo['srollFL' + i] = [mo['bankL' + i][1], mo['bankL' + i][0], -mo['bankL' + i][2]]
+        mo['srollBL' + i] = [-mo['bankL' + i][1], mo['bankL' + i][0], mo['bankL' + i][2]]
+        mo['srollFR' + i] = [mo['bankL' + i][1], -mo['bankL' + i][0], mo['bankL' + i][2]]
+        mo['srollBR' + i] = [-mo['bankL' + i][1], -mo['bankL' + i][0], -mo['bankL' + i][2]]
+        _forwardBack(j, mo, 'srollFL')
+        _forwardBack(j, mo, 'srollBL')
+        _forwardBack(j, mo, 'srollFR')
+        _forwardBack(j, mo, 'srollBR')
+
     for i in ['1', '2', '3', '4', '5']:
         mo['forward' + i] = [_movementConstants['forward'][int(i)] + width, 0.0, 0.0]
+        mo['reverse' + i] = [-_movementConstants['forward'][int(i)] - width, 0.0, 0.0]
         mo['kturn' + i] =   [_movementConstants['forward'][int(i)] + width, 0.0, math.pi]
+
+        if j == 0:
+            mo['brollL' + i] = [0.0, _movementConstants['forward'][int(i)] + width, 0.0]
+            mo['brollR' + i] = [0.0, -_movementConstants['forward'][int(i)] - width, 0.0]
+        else:
+            mo['brollL' + i] = [0.0, 20. + width, 0.0]
+            mo['brollR' + i] = [0.0, -20. - width, 0.0]
+
+        _forwardBack(j, mo, 'brollL')
+        _forwardBack(j, mo, 'brollR')
 
     mo['stop'] = [0.0, 0.0, 0.0]
     mo['ionized'] = mo['forward1']
 
-maneuver_list = sorted(Base._maneuverOffsets_xyr[0])
+maneuver_list = sorted(set(k.split('_')[0] for k in Base._maneuverOffsets_xyr[0]))
