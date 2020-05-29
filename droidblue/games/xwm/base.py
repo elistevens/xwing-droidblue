@@ -232,7 +232,10 @@ class Base(Square):
             if dx < 7.5:
                 arc_ary[i, self.arcBullseye_ndx] = True
 
-            range_ary[i,0] = other_p.distance(self) - self.outer_radius
+            range_ary[i,0] = other_p.distance(self.corners[0])
+            for this_corner in self.corners:
+                range_ary[i,0] = min(range_ary[i,0], other_p.distance(this_corner))
+
             range_ary[i,1] = np.ceil(range_ary[i,0] / 100.)
             if range_ary[i,1] < 1 and not self.overlapsPoint(other_p):
                 range_ary[i,1] = 1

@@ -116,9 +116,18 @@ class XwsCard:
 class Pilot:
     @classmethod
     def fromXws(cls, pilot_xws: str, upgrade_list: List[str]):
+        import droidblue.defaults.actions
+        import droidblue.defaults.attacks
+        import droidblue.defaults.choose
+        import droidblue.defaults.maneuvers
+
         pilot_dict = xws2json_dict[pilot_xws]
 
         rule_list: List[type] = []
+        rule_list.extend(droidblue.defaults.actions.rule_list)
+        rule_list.extend(droidblue.defaults.attacks.rule_list)
+        rule_list.extend(droidblue.defaults.choose.rule_list)
+        rule_list.extend(droidblue.defaults.maneuvers.rule_list)
 
         if 'ability' in pilot_dict:
             if pilot_xws not in xws2cls_dict:
@@ -143,3 +152,68 @@ class Pilot:
 
     def __init__(self, pilot_dict, rule_list):
         pass
+
+    @classmethod
+    def initRules(cls, const: ConstantState, pilot_id: PilotId, faction_str: str, pilot_json: Dict):
+        import droidblue.defaults.actions
+        import droidblue.defaults.attacks
+        import droidblue.defaults.choose
+        import droidblue.defaults.maneuvers
+        from droidblue.cards import xws
+
+        # Generic rules
+        rule_list = []
+        rule_list.extend(droidblue.defaults.actions.rule_list)
+        rule_list.extend(droidblue.defaults.attacks.rule_list)
+        rule_list.extend(droidblue.defaults.choose.rule_list)
+        rule_list.extend(droidblue.defaults.maneuvers.rule_list)
+
+        for xws_dict in [xws.ship_dict[pilot_json['ship']], xws.pilot_dict[pilot_json['name']]]:
+            for stat, value in xws_dict.get('stat_dict', {}).iteritems():
+                log.debug("pilot_id {}, {}: {}".format(pilot_id, stat, value))
+                const._setRawStat(pilot_id, stat, value)
+
+            rule_list.extend(xws_dict.get('rule_list', []))
+
+        # Ship and pilot rules
+        module_list = ['ship.' + pilot_json['ship'], 'pilot.{}.{}'.format(faction_str, pilot_json['name'])]
+        for module_str in module_list:
+            try:
+                module = importstr('droidblue.cards.{}'.format(module_str))
+            except ImportError:
+                if '.ship.' not in module_str:
+                    log.warn("Module not found: {}".format(module_str))
+                continue
+
+            for stat, value in getattr(module, 'stat_dict', {}).iteritems():
+                const._setRawStat(pilot_id, stat, value)
+
+            rule_list.extend(getattr(module, 'rule_list', []))
+
+        for rule_cls in rule_list:
+            log.debug(rule_cls)
+            rule_cls(const, pilot_id)
+
+        # Can't fold in the upgrade rules to the above, since we need to check
+        # the cards for discard, etc.
+        # We need one "upgrade" to represent the pilot card, for things
+        # like "no more pilot ability" crits and once-per-game effects.
+        upgrade_count = 1
+        for slot_str, upgrade_list in pilot_json.get('upgrades', {}).iteritems():
+            for upgrade_str in upgrade_list:
+                module_str = 'droidblue.upgrade.{}.{}'.format(slot_str, upgrade_str)
+
+                try:
+                    module = importstr('droidblue.{}'.format(module_str))
+                except ImportError:
+                    log.warn("Module not found: {}".format(module_str))
+                    continue
+
+                for rule_cls in getattr(module, 'rule_list', []):
+                    rule_cls(const, pilot_id, upgrade_offset + upgrade_count)
+                upgrade_count += 1
+
+        const._setRawStat(pilot_id, 'points', pilot_json['points'])
+        const._setRawStat(pilot_id, 'upgrade_count', upgrade_count)
+
+        return upgrade_count

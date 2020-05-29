@@ -1,4 +1,4 @@
-from droidblue.core.pilot import Pilot
+from droidblue.core.pilot import Pilot, PilotId
 
 __author__ = 'elis'
 
@@ -18,7 +18,7 @@ import numpy as np
 
 from droidblue.core.edge import ChoosePassEdge, RandomEdge
 from droidblue.core.rules import Rule, default_ruleKey, RuleState
-from droidblue.core.dice import StateBackedAttackDicePool, StateBackedDefenseDicePool
+# from droidblue.core.dice import StateBackedAttackDicePool, StateBackedDefenseDicePool
 
 StepTuple = collections.namedtuple('StepTuple', ['step', 'count', 'active_id', 'target_id'])
 
@@ -41,16 +41,25 @@ class ConstantState(RuleState):
         'player_id',
         'points',
         'unique',
-        'ps',
-        'atk',
+        'init',
+        'atk_front',
+        'atk_back',
+        'atk_left',
+        'atk_right',
+        'atk_widefront',
+        'atk_wideback',
+        'atk_turret',
+        'atk_bowtie',
         'agi',
-        'shield_max',
         'hull_max',
-        'isLarge',
+        'shield_max',
+        'charge_max',
+        'force_max',
+        'size',
         'ionizedAt_count',
-        'upgrade_count',
-        'upgrade_offset',
-        'simplifyForTraining'
+        # 'upgrade_count',
+        # 'upgrade_offset',
+        # 'simplifyForTraining'
     ]
     stat_set = set(stat_list)
     statIndex_dict = {k: i for i, k in enumerate(stat_list)}
@@ -72,13 +81,13 @@ class ConstantState(RuleState):
 
         super().__init__(True, self.pilot_count)
 
-        pilot_id = 0
+        pilot_id: PilotId = 0
         for player_id, squad_json in enumerate(squads_list):
             for pilot_json in squad_json['pilots']:
                 self._setRawStat(pilot_id, 'player_id', player_id)
-                self._setRawStat(pilot_id, 'upgrade_offset', self.upgrade_count)
-                self._setRawStat(pilot_id, 'simplifyForTraining', simplifyForTraining_bool)
-                self.upgrade_count += Pilot.initRules(self, pilot_id, self.upgrade_count, squad_json['faction'], pilot_json)
+                # self._setRawStat(pilot_id, 'upgrade_offset', self.upgrade_count)
+                # self._setRawStat(pilot_id, 'simplifyForTraining', simplifyForTraining_bool)
+                # self.upgrade_count += Pilot.initRules(self, pilot_id, self.upgrade_count, squad_json['faction'], pilot_json)
 
                 # self.ship_list.append(pilot_json['ship'])
                 # self.pilot_list.append(pilot_json['name'])
@@ -192,6 +201,7 @@ class BoardState(RuleState):
         self.opportunity_set = set()
 
         hull_max = 1
+        pilot_id: PilotId
         for pilot_id in range(self.const.pilot_count):
             # self.getStat(pilot_id, 'hull_max')
             self._setRawStat(pilot_id, 'shield', self.getStat(pilot_id, 'shield_max'))
@@ -475,13 +485,13 @@ class BoardState(RuleState):
     def pilots(self):
         return [Pilot(self, pilot_id) for pilot_id in range(self.const.pilot_count)]
 
-    @property
-    def attackDice_pool(self):
-        return StateBackedAttackDicePool(self, self.active_id)
-
-    @property
-    def defenseDice_pool(self):
-        return StateBackedDefenseDicePool(self, self.target_id)
+    # @property
+    # def attackDice_pool(self):
+    #     return StateBackedAttackDicePool(self, self.active_id)
+    #
+    # @property
+    # def defenseDice_pool(self):
+    #     return StateBackedDefenseDicePool(self, self.target_id)
 
 
     def useOpportunity(self, opportunity_list):

@@ -29,7 +29,7 @@ class RandomPlay(object):
 
         for i in range(50):
             try:
-                self.state.getOutgoingEdges()
+                self.state.getFilteredEdges()
             except IndexError:
                 print "Done, but just fastforwarded:"
                 break

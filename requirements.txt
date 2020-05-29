@@ -5,6 +5,5 @@ matplotlib
 numpy
 pytest
 scipy
-tensorboardX
 tensorflow
-
+torch

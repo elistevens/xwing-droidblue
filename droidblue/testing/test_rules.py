@@ -14,7 +14,7 @@ def test_doPerformAction(single_state):
 
     state.pushSteps(['doPerformAction'], active_id=0)
 
-    edge_list, activePlayer_id = state.getOutgoingEdges()
+    edge_list, activePlayer_id = state.getFilteredEdges()
 
     assert edge_list
 
@@ -29,7 +29,7 @@ def test_doPerformAction(single_state):
 
     assert state.opportunity_set != new_state.opportunity_set
 
-    edge_list, activePlayer_id = new_state.getOutgoingEdges(fastforward_bool=False)
+    edge_list, activePlayer_id = new_state.getFilteredEdges(fastforward_bool=False)
     assert not edge_list
 
 

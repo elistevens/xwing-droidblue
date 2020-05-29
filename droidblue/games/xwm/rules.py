@@ -8,7 +8,8 @@ from typing import NewType, Optional, Dict, List, Tuple
 
 import numpy as np
 
-from .node import StateAbc, PilotId
+from .node import StateAbc, EdgeAbc
+from .pilot import PilotId
 
 from ..logging_config import logging
 log = logging.getLogger(__name__)
@@ -234,7 +235,7 @@ class RuleState(StateAbc):
 
         return rule_list
 
-    def addStatRule(self, rule, stat_key):
+    def addStatRule(self, rule, stat_key: str):
         self.statRules_dict.setdefault(stat_key, []).append(rule)
 
     def getStatRules(self, key_list):
@@ -245,27 +246,27 @@ class RuleState(StateAbc):
         return rule_list
 
     # Stats, which includes the raw storage for tokens and flags
-    def getStat(self, pilot_id: PilotId, stat_key):
+    def getStat(self, pilot_id: PilotId, stat_key: str):
         result = self._getRawStat(pilot_id, stat_key)
         for rule in self.getStatRules([stat_key]):
             result = getattr(rule, 'getStat_' + stat_key, lambda state, result: result)(self, result)
 
         return result
 
-    def _getRawStat(self, pilot_id: PilotId, stat_key):
+    def _getRawStat(self, pilot_id: PilotId, stat_key: str) -> int:
         return int(self.stat_array[pilot_id, self.statIndex_dict[stat_key]])
 
-    def _setRawStat(self, pilot_id: PilotId, stat_key, value):
+    def _setRawStat(self, pilot_id: PilotId, stat_key: str, value: int):
         # log.info(self.statIndex_dict)
         self.stat_array[pilot_id: PilotId, self.statIndex_dict[stat_key]] = value
 
 
     # Edges
-    def _getEdges(self, step, active_id: PilotId, target_id: PilotId):
+    def _getEdges(self, step, active_id: PilotId, target_id: PilotId) -> List[EdgeAbc]:
         rule_list = self.getEdgeRules(step, active_id, target_id)
         edge_list = []
         for rule in rule_list:
-            edge_list.extend(rule.getOutgoingEdges(self))
+            edge_list.extend(rule.getFilteredEdges(self))
             # log.debug("{}: {}".format(rule, edge_list))
 
         # Has to be a separate loop from the above so that filtering can see

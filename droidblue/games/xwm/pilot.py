@@ -7,11 +7,15 @@ log.setLevel(logging.INFO)
 import itertools
 import math
 
+from typing import NewType, Optional, Dict, List, Tuple
+
 import numpy as np
 
 from droidblue.core.base import Base
+from droidblue.core.state import ConstantState
 from droidblue.util import importstr
 
+PilotId = NewType('PilotId', int)
 
 class Pilot(Base):
     def __init__(self, state, pilot_id):
@@ -26,13 +30,13 @@ class Pilot(Base):
     # def pilot_str(self):
     #     return self.state.const.pilot_list[self.pilot_id]
 
-    @property
-    def isLarge(self):
-        return self.state.const._getRawStat(self.pilot_id, 'isLarge')
+    # @property
+    # def isLarge(self):
+    #     return self.state.const._getRawStat(self.pilot_id, 'isLarge')
 
     @property
     def width(self):
-        return self._widths[self.isLarge]
+        return self._widths[self._size]
 
     @property
     def x(self):
@@ -82,7 +86,7 @@ class Pilot(Base):
         self.state.maneuver_list[self.pilot_id] = value
 
     @classmethod
-    def initRules(cls, const, pilot_id, upgrade_offset, faction_str, pilot_json):
+    def initRules(cls, const: ConstantState, pilot_id: PilotId, faction_str: str, pilot_json: Dict):
         import droidblue.defaults.actions
         import droidblue.defaults.attacks
         import droidblue.defaults.choose
