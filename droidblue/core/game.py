@@ -10,7 +10,7 @@ from droidblue.util import FancyRepr
 class Game(FancyRepr):
 
     def __init__(self, state_cls, agents):
-        self.start_node: Node = Node.fromStartState(state_cls())
+        self.start_node: Node = Node(state_cls())
         self.played_nodes: List[Node] = [self.start_node]
         self.agents: List[AgentBase] = agents
 
@@ -22,10 +22,14 @@ class Game(FancyRepr):
         state = self.current_node.state
         agent = self.agents[state.active_player]
 
-        new_edge = agent.chooseEdge(self, state, self.current_node.outgoingEdges)
+        self.current_node.populateChildren()
+        # print(self.current_node.childNodes, self.current_node.state.getFinalScore(self.current_node.state.active_player))
 
-        self.played_nodes.append(self.current_node.getNextNode(new_edge))
+        # print(self.current_node.state)
+        next_node = agent.chooseNextNode(self.current_node)
+
+        self.played_nodes.append(next_node)
 
     def playGame(self):
-        while self.current_node.outgoingEdges:
+        while self.current_node.state.getFinalScore(self.current_node.state.active_player) is None:
             self.playTurn()

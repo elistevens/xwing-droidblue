@@ -1,7 +1,7 @@
 import abc
 import copy
 
-from typing import NewType, List, Set, Union
+from typing import NewType, List, Set, Union, Optional
 
 import numpy as np
 
@@ -17,7 +17,10 @@ PlayerId = NewType("PlayerId", int)
 
 
 class RuleBase(FancyRepr):
-    def allowEdge(self, state, edge):
+    def proposeEdges(self, state: "StateBase") -> List["EdgeBase"]:
+        return []
+
+    def allowEdge(self, state: "StateBase", edge: "EdgeBase"):
         return True
 
 
@@ -42,9 +45,13 @@ class StateBase(FancyRepr, metaclass=abc.ABCMeta):
     def __init__(self):
         self.active_player: PlayerId = PlayerId(0)
         self.frozen: bool = True
+        self.isTrainable: bool = False
+
+    def getTrainableInput(self) -> np.array:
+        return None
 
     @abc.abstractmethod
-    def getScore(self, player: PlayerId) -> float:
+    def getFinalScore(self, player: PlayerId) -> Optional[float]:
         pass
 
     @abc.abstractmethod
@@ -72,6 +79,7 @@ class StateBase(FancyRepr, metaclass=abc.ABCMeta):
                 other.__dict__[k] = copy.deepcopy(v)
 
         other.frozen = False
+        other.isTrainable = False
 
         return other
 

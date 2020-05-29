@@ -51,7 +51,7 @@ class Round(object):
             current_state.semiRandomPlayout(self.ai_list)
 
             for player_id, dialPlan_list in enumerate(self.player2dialPlan_list):
-                score = self.ai_list[player_id].getScore(current_state, player_id)
+                score = self.ai_list[player_id].getFinalScore(current_state, player_id)
                 dialPlan_list[-1].addPlayout(score)
 
             if limit_sec and start_ts + limit_sec > time.time():

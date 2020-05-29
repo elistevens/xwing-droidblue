@@ -1,44 +1,47 @@
-from typing import Optional, List
+from typing import Optional, List, Type
 
-from droidblue.core.basecls import StateBase, EdgeBase
+from droidblue.core.basecls import StateBase, EdgeBase, PlayerId
 from droidblue.util import FancyRepr
 
 
 class Node(FancyRepr):
-    @classmethod
-    def fromStartState(cls, state: StateBase, **kwargs) -> "Node":
-        outgoingEdges = state.getFilteredEdges()
-
-        return cls(None, state, outgoingEdges, **kwargs)
-
     def __init__(
         self,
-        incomingEdges: Optional[List[EdgeBase]],
-        state: StateBase,
-        outgoingEdges: List[EdgeBase],
-        **kwargs,
+        parent_state: StateBase,
+        incomingEdge: Optional[EdgeBase] = None,
     ):
-        self.incomingEdges: List[EdgeBase] = incomingEdges
-        self.state: StateBase = state
+        self.state: StateBase = parent_state.clone()
 
-        # TODO get rid of these next two
-        self.outgoingEdges: List[EdgeBase] = outgoingEdges
-        self.outgoingNodes: List[Optional[Node]] = [None] * len(outgoingEdges)
+        self.incomingEdge: EdgeBase = incomingEdge
+        if self.incomingEdge:
+            self.incomingEdge.updateState(self.state)
 
-    def getNextNode(self, new_edge: EdgeBase, fastforward: bool = True,) -> "Node":
-        new_state = self.state.clone()
-        outgoingEdges = [new_edge]
+        self.childNodes: Optional[List[Node]] = None
+        self.parent_active_player: PlayerId = parent_state.active_player
+        # self.predicted_score: Optional[float] = self.state.getPredictedScore(parent_state.active_player)
 
-        incomingEdges = []
-        while len(outgoingEdges) == 1 and (fastforward or (len(incomingEdges) == 0)):
-            # log.debug(['fastforwarding', outgoingEdges])
-            incomingEdges.append(outgoingEdges[0])
-            outgoingEdges[0].updateState(new_state)
 
-            outgoingEdges = new_state.getFilteredEdges()
+    def populateChildren(self):
+        outgoingEdges = self.state.getFilteredEdges()
 
-        new_state.frozen = True
+        self.childNodes = [type(self)(self.state, outgoingEdge) for outgoingEdge in outgoingEdges]
 
-        return type(self)(incomingEdges, new_state, outgoingEdges)
 
+    # def getNextNode(self, new_edge: EdgeBase) -> "Node":
+    #     pass
+    #     new_state = self.state.clone()
+    #     outgoingEdges = [new_edge]
+    #
+    #     incomingEdges = []
+    #     while len(outgoingEdges) == 1 and (fastforward or (len(incomingEdges) == 0)):
+    #         # log.debug(['fastforwarding', outgoingEdges])
+    #         incomingEdges.append(outgoingEdges[0])
+    #         outgoingEdges[0].updateState(new_state)
+    #
+    #         outgoingEdges = new_state.getFilteredEdges()
+    #
+    #     new_state.frozen = True
+    #
+    #     return type(self)(incomingEdges, new_state, outgoingEdges)
+    #
     # def getScore(self):

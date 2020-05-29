@@ -22,7 +22,7 @@ class TicTacToeState(TwoPlayerStateBase):
 
         self.board = np.zeros((2, 3, 3), dtype=np.int8)
 
-    def getScore(self, player: PlayerId) -> float:
+    def getFinalScore(self, player: PlayerId) -> Optional[float]:
         board_list = [
             (1, self.board[player]),
             (-1, self.board[0 if player else 1]),
@@ -39,7 +39,12 @@ class TicTacToeState(TwoPlayerStateBase):
             if board[0, 2] == board[1, 1] == board[2, 0] == 1:
                 return score
 
-        return 0
+        if self.board.sum() == 9:
+            return 0
+
+        # print(self)
+
+        return None
 
     def getActiveRules(self) -> List[RuleBase]:
         return []
@@ -47,7 +52,7 @@ class TicTacToeState(TwoPlayerStateBase):
     def getRawEdges(self) -> List[TicTacToeEdge]:
         outgoing_edges = []
 
-        if self.getScore(self.active_player) == 0:
+        if self.getFinalScore(self.active_player) is None:
             rows, cols = np.where(self.board.sum(axis=0) == 0)
 
             for row, col in zip(rows.flatten(), cols.flatten()):
