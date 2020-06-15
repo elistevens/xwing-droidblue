@@ -1,7 +1,7 @@
-diskcache
-h5py
-jupyter
-matplotlib
+#diskcache
+#h5py
+#jupyter
+#matplotlib
 numpy
 pytest
 scipy

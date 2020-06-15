@@ -1,6 +1,7 @@
 import argparse
 import datetime
 import logging
+import math
 import os
 import random
 import sys
@@ -19,7 +20,7 @@ from droidblue.core.basecls import PlayerId
 from droidblue.core.agent import RandomAgent
 from droidblue.core.game import Game
 
-from .battlecruiser import BattleCruiserState
+from .battlecruiser import BattleCruiserState, BattleCruiserAgent, BattleCruiserPlaceModel, BattleCruiserShotModel, BattleCruiserShotEdge
 
 log = logging.getLogger(__name__)
 # log.setLevel(logging.WARN)
@@ -28,60 +29,42 @@ log.setLevel(logging.DEBUG)
 
 
 class BattleCruiserDataset(Dataset):
-    def __init__(self):
+    def __init__(self, event_type, placeModel_path = "droidblue/games/bc/BattleCruiserPlaceModel-latest.state", shotModel_path = "droidblue/games/bc/BattleCruiserShotModel-latest.state"):
+        self.event_type = event_type
         self.agents = [
-            RandomAgent(),
-            RandomAgent(),
+            BattleCruiserAgent(placeModel_path, shotModel_path),
+            BattleCruiserAgent(placeModel_path, shotModel_path),
         ]
 
     def __len__(self):
-        return 1000
+        return 128 * 128
 
     def __getitem__(self, ndx):
         game = Game(BattleCruiserState, self.agents)
         game.playGame()
 
-        trainable_nodes = [node for node in game.played_nodes if node.state.isTrainable]
+        trainable_nodes = [node for node in game.played_nodes if self.event_type in node.edgeType_to_trainingSample_dict]
+
+        if not trainable_nodes:
+            print(f"len(game.played_nodes): {len(game.played_nodes)}")
+            for node in game.played_nodes:
+                print(f"node.edgeType_to_trainingSample_dict: {node.edgeType_to_trainingSample_dict}")
+
         chosen_node = random.choice(trainable_nodes)
 
-        score = game.current_node.state.getFinalScore(chosen_node.parent_active_player)
+        inputs, labels, outputs = chosen_node.edgeType_to_trainingSample_dict[self.event_type]
 
-        input_t = torch.from_numpy(chosen_node.state.getTrainableInput()).to(torch.float32)
-        score_t = torch.tensor([score], dtype=torch.float32)
+        final_score = game.current_node.state.getFinalScore(chosen_node.state.active_player)
+        labels.append(np.array([final_score], dtype=np.float32))
 
-        training_sample = (input_t,), (score_t,), ({},)
+        input_tup = tuple(torch.from_numpy(x) for x in inputs)
+        label_tup = tuple(torch.from_numpy(x) for x in labels)
+
+        training_sample = input_tup, label_tup
 
         return training_sample
 
 
-class Model(nn.Module):
-    def __init__(self, in_channels=4):
-        super().__init__()
-
-        layer_list = []
-
-        for conv_channels in [6, 4, 2, 1]:
-            layer_list.extend(
-                [
-                    nn.Conv2d(
-                        in_channels, conv_channels, kernel_size=3, padding=1, bias=True,
-                    ),
-                    nn.ReLU(inplace=True),
-                ]
-            )
-
-            in_channels = conv_channels
-
-        self.conv_seq = nn.Sequential(*layer_list)
-        self.linear_layer = nn.Linear(36, 1)
-
-    def forward(self, input_t):
-        conv_t = self.conv_seq(input_t)
-
-        # print(conv_t.shape)
-        output_t = self.linear_layer(conv_t.view(conv_t.shape[0], -1))
-
-        return output_t
 
 
 class TrainingApp:
@@ -97,12 +80,12 @@ class TrainingApp:
         )
         parser.add_argument('--batch-size',
             help='Batch size to use for training',
-            default=4,
+            default=128,
             type=int,
         )
         parser.add_argument('--epochs',
             help='Number of epochs to train for',
-            default=1,
+            default=30,
             type=int,
         )
 
@@ -123,6 +106,7 @@ class TrainingApp:
         self.val_writer = None
         self.totalTrainingSamples_count = 0
 
+        # self.use_cuda = False
         self.use_cuda = torch.cuda.is_available()
         self.device = torch.device("cuda" if self.use_cuda else "cpu")
 
@@ -130,7 +114,7 @@ class TrainingApp:
         self.optimizer = self.initOptimizer()
 
     def initModel(self):
-        model = Model()
+        model = BattleCruiserShotModel()
 
         if self.use_cuda:
             log.info("Using CUDA with {} devices.".format(torch.cuda.device_count()))
@@ -144,7 +128,7 @@ class TrainingApp:
         return Adam(self.model.parameters())
 
     def initTrainDl(self):
-        train_ds = BattleCruiserDataset()
+        train_ds = BattleCruiserDataset(BattleCruiserShotEdge)
 
         batch_size = self.cli_args.batch_size
         if self.use_cuda:
@@ -160,7 +144,7 @@ class TrainingApp:
         return train_dl
 
     def initValDl(self):
-        val_ds = BattleCruiserDataset()
+        val_ds = BattleCruiserDataset(BattleCruiserShotEdge)
 
         batch_size = self.cli_args.batch_size
         if self.use_cuda:
@@ -193,6 +177,7 @@ class TrainingApp:
 
         # self.initTensorboardWriters()
 
+        epoch_ndx = None
         for epoch_ndx in range(1, self.cli_args.epochs + 1):
 
             log.info("Epoch {} of {}, {}/{} batches of size {}*{}".format(
@@ -207,12 +192,42 @@ class TrainingApp:
             self.doTraining(epoch_ndx, train_dl)
             # self.logMetrics(epoch_ndx, 'trn', trnMetrics_t)
 
-            self.doValidation(epoch_ndx, val_dl)
+            # self.doValidation(epoch_ndx, val_dl)
             # self.logMetrics(epoch_ndx, 'val', valMetrics_t)
 
         # if hasattr(self, 'trn_writer'):
         #     self.trn_writer.close()
         #     self.val_writer.close()
+
+            state = {
+                'sys_argv': sys.argv,
+                'time': str(datetime.datetime.now()),
+                'model_state': self.model.state_dict(),
+                'model_name': type(self.model).__name__,
+                'optimizer_state' : self.optimizer.state_dict(),
+                'optimizer_name': type(self.optimizer).__name__,
+                'epoch': epoch_ndx,
+                # 'totalTrainingSamples_count': self.totalTrainingSamples_count,
+            }
+            save_path = f"droidblue/games/bc/{type(self.model).__name__}-0vs0-v1.state"
+            last_path = f"droidblue/games/bc/{type(self.model).__name__}-latest.state"
+            torch.save(state, save_path)
+            torch.save(state, last_path)
+
+            agents = [
+                BattleCruiserAgent(None, save_path),
+                RandomAgent(),
+            ]
+            wins = 0
+            games = 100
+
+            for i in range(games):
+                game = Game(BattleCruiserState, agents)
+                game.playGame()
+
+                wins += game.current_node.state.getFinalScore(PlayerId(0)) > 0
+
+            log.info(f"wins: {wins}")
 
 
     def doTraining(self, epoch_ndx, train_dl):
@@ -229,29 +244,29 @@ class TrainingApp:
         #     start_ndx=train_dl.num_workers,
         # )
         # for batch_ndx, batch_tup in batch_iter:
+        total_loss = 0.0
         for batch_ndx, batch_tup in enumerate(train_dl):
             self.optimizer.zero_grad()
 
-            input_tup, label_tup, metadata_tup = batch_tup
+            input_tup, label_tup = batch_tup
 
-            input_t = input_tup[0]
-            label_t = label_tup[0]
+            input_gtup = tuple(x.to(self.device, non_blocking=True) for x in input_tup)
+            label_gtup = tuple(x.to(self.device, non_blocking=True) for x in label_tup)
 
-            input_g = input_t.to(self.device, non_blocking=True)
-            label_g = label_t.to(self.device, non_blocking=True)
-
-            output_g = self.model(input_g)
+            output_g = self.model(*input_gtup)
 
             loss_func = nn.MSELoss()
             loss_g = loss_func(
-                output_g,
-                label_g,
+                output_g[0],
+                label_gtup[0],
             )
 
             loss_g.backward()
             self.optimizer.step()
 
-            print("Training loss:", loss_g.item())
+            total_loss += loss_g.item()
+
+        log.info(f"Training loss: {total_loss}")
 
 
     def doValidation(self, epoch_ndx, val_dl):

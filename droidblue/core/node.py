@@ -1,4 +1,4 @@
-from typing import Optional, List, Type
+from typing import Dict, Optional, List, Type, Tuple
 
 from droidblue.core.basecls import StateBase, EdgeBase, PlayerId
 from droidblue.util import FancyRepr
@@ -9,39 +9,17 @@ class Node(FancyRepr):
         self,
         parent_state: StateBase,
         incomingEdge: Optional[EdgeBase] = None,
+        new_state: StateBase = None,
     ):
-        self.state: StateBase = parent_state.clone()
+        if new_state:
+            self.state: StateBase = new_state
+            self.incomingEdge: EdgeBase = incomingEdge
+        else:
+            self.state: StateBase = parent_state.clone()
+            self.incomingEdge: EdgeBase = incomingEdge
 
-        self.incomingEdge: EdgeBase = incomingEdge
-        if self.incomingEdge:
-            self.incomingEdge.updateState(self.state)
+            if self.incomingEdge:
+                self.incomingEdge.updateState(self.state)
 
-        self.childNodes: Optional[List[Node]] = None
-        self.parent_active_player: PlayerId = parent_state.active_player
-        # self.predicted_score: Optional[float] = self.state.getPredictedScore(parent_state.active_player)
-
-
-    def populateChildren(self):
-        outgoingEdges = self.state.getFilteredEdges()
-
-        self.childNodes = [type(self)(self.state, outgoingEdge) for outgoingEdge in outgoingEdges]
-
-
-    # def getNextNode(self, new_edge: EdgeBase) -> "Node":
-    #     pass
-    #     new_state = self.state.clone()
-    #     outgoingEdges = [new_edge]
-    #
-    #     incomingEdges = []
-    #     while len(outgoingEdges) == 1 and (fastforward or (len(incomingEdges) == 0)):
-    #         # log.debug(['fastforwarding', outgoingEdges])
-    #         incomingEdges.append(outgoingEdges[0])
-    #         outgoingEdges[0].updateState(new_state)
-    #
-    #         outgoingEdges = new_state.getFilteredEdges()
-    #
-    #     new_state.frozen = True
-    #
-    #     return type(self)(incomingEdges, new_state, outgoingEdges)
-    #
-    # def getScore(self):
+        self.edgeType_to_evalData: Dict[EdgeBase, Tuple] = {}
+        self.outgoingEdge: Optional[EdgeBase] = None

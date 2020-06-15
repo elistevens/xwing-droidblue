@@ -24,21 +24,6 @@ class RuleBase(FancyRepr):
         return True
 
 
-class EdgeBase(FancyRepr, metaclass=abc.ABCMeta):
-    score = None
-
-    # def __init__(self, parent_state: "StateBase"):
-    #     assert isinstance(parent_state, StateBase)
-    #     self.parent_state: StateBase = parent_state
-
-    @abc.abstractmethod
-    def updateState(self, state: "StateBase"):
-        pass
-
-    def setScore(self, score: Union[int, float]):
-        self.score = score
-
-
 class StateBase(FancyRepr, metaclass=abc.ABCMeta):
     cloneKeep_set: Set[str] = set()
 
@@ -47,22 +32,19 @@ class StateBase(FancyRepr, metaclass=abc.ABCMeta):
         self.frozen: bool = True
         self.isTrainable: bool = False
 
-    def getTrainableInput(self) -> np.array:
-        return None
-
     @abc.abstractmethod
     def getFinalScore(self, player: PlayerId) -> Optional[float]:
         pass
 
     @abc.abstractmethod
-    def getActiveRules(self) -> List[RuleBase]:
+    def getActiveRules(self) -> List["RuleBase"]:
         pass
 
     @abc.abstractmethod
-    def getRawEdges(self) -> List[EdgeBase]:
+    def getRawEdges(self) -> List["EdgeBase"]:
         pass
 
-    def getFilteredEdges(self) -> List[EdgeBase]:
+    def getFilteredEdges(self) -> List["EdgeBase"]:
         rule_list = self.getActiveRules()
         edge_list = self.getRawEdges()
 
@@ -73,6 +55,7 @@ class StateBase(FancyRepr, metaclass=abc.ABCMeta):
 
     def clone(self) -> "StateBase":
         other = copy.copy(self)
+        # other = copy.deepcopy(self)
 
         for k, v in list(self.__dict__.items()):
             if k not in self.cloneKeep_set:
@@ -127,3 +110,20 @@ class TwoPlayerStateBase(StateBase):
             self.other_player,
             self.active_player,
         )
+
+
+class EdgeBase(FancyRepr, metaclass=abc.ABCMeta):
+    score = None
+
+    # def __init__(self, parent_state: "StateBase"):
+    #     assert isinstance(parent_state, StateBase)
+    #     self.parent_state: StateBase = parent_state
+
+    @abc.abstractmethod
+    def updateState(self, state: StateBase):
+        pass
+
+    def setScore(self, score: Union[int, float]):
+        self.score = score
+
+
